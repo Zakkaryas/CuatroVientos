@@ -1,0 +1,11 @@
+2026-08-16 11:10:49,971 - INFO - Verificando conexión con la API de AEMET...
+2026-08-16 11:10:50,429 - INFO - ✅ Conexión con AEMET establecida correctamente
+2026-08-16 11:10:50,580 - INFO - Última fecha encontrada en archivo agregado: 2026-08-11
+2026-08-16 11:10:50,581 - INFO - =====================================================
+2026-08-16 11:10:50,581 - INFO - Fecha de inicio calculada: 12/08/2026
+2026-08-16 11:10:50,581 - INFO - Fecha de fin (automática): 11/08/2026
+2026-08-16 11:10:50,582 - INFO - Días a descargar: 0 días
+2026-08-16 11:10:50,582 - INFO - Máximo de reintentos por periodo: 10
+2026-08-16 11:10:50,582 - INFO - =====================================================
+2026-08-16 11:10:50,582 - ERROR - Error: La fecha de inicio (12/08/2026) es posterior a la fecha de fin (11/08/2026)
+2026-08-16 11:10:50,583 - INFO - No se descargaron datos nuevos
