@@ -47,7 +47,7 @@ logger = setup_robust_logging()
 #ARCHIVO_AGREGADO = os.path.join(DIRECTORIO_DESTINO, "datos_estacion_3195.json")
 
 ARCHIVO_AGREGADO = Path(__file__).parent / "datos_estacion_3195.json"
-
+DIRECTORIO_DESTINO = Path(__file__).parent
 
 # 3. CLASE AEMETClient
 class AEMETClient:
