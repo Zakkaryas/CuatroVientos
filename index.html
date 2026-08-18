@@ -20,7 +20,7 @@
   <!-- TOP BAR -->
   <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
     
-    <!-- Tarjetas / KPIs -->
+    <!-- Tarjetas -->
     <div class="flex gap-4">
       <div class="bg-white px-5 py-2 rounded-xl card-shadow border border-gray-200 text-center min-w-[130px]">
         <div class="text-2xl font-bold text-red-600"><span id="card1-val">--</span><span class="text-red-500 ml-0.5">!</span></div>
@@ -60,12 +60,12 @@
 
   <!-- TABLAS -->
   <div class="space-y-6">
-    <!-- Tabla Promedio Mensual TMAX -->
+    <!-- Tabla Roja (T. Máximas) -->
     <div class="overflow-x-auto bg-white rounded-lg shadow border border-gray-300">
       <table id="tabla-roja" class="w-full border-collapse"></table>
     </div>
 
-    <!-- Tabla Promedio Mensual TMIN -->
+    <!-- Tabla Verde (T. Medias) -->
     <div class="overflow-x-auto bg-white rounded-lg shadow border border-gray-300">
       <table id="tabla-verde" class="w-full border-collapse"></table>
     </div>
@@ -73,10 +73,10 @@
 
   <script>
     const RUTAS_JSON = [
-       'https://raw.githubusercontent.com/Zakkaryas/CuatroVientos/refs/heads/main/datos_estacion_3195.json'
+        'https://raw.githubusercontent.com/Zakkaryas/CuatroVientos/refs/heads/main/datos_estacion_3195.json'
     ];
 
-    const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+    const MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
 
     function parseNum(val) {
       if (val === undefined || val === null || val === "") return null;
@@ -111,7 +111,7 @@
 
         rawData.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
 
-        const { anios, promediosTmax, promediosTmin, ultimoRegistro, registroAnioAnterior } = procesarAEMET(rawData);
+        const { anios, promediosTmax, promediosTmed, mediasAnualesTmax, mediasAnualesTmed, ultimoRegistro, registroAnioAnterior } = procesarAEMET(rawData);
 
         // Actualizar Fecha
         if (ultimoRegistro) {
@@ -119,13 +119,13 @@
           document.getElementById('fecha-cargada').innerText = `${dd}/${mm}/${yyyy}`;
         }
 
-        // Actualizar KPIs comparando con la misma fecha del año anterior
+        // Actualizar Tarjetas (TMAX y TMED del día frente a la misma fecha del año anterior)
         if (ultimoRegistro && registroAnioAnterior) {
           actualizarTarjeta('card1', parseNum(ultimoRegistro.tmax), parseNum(registroAnioAnterior.tmax));
-          actualizarTarjeta('card2', parseNum(ultimoRegistro.tmin), parseNum(registroAnioAnterior.tmin));
+          actualizarTarjeta('card2', parseNum(ultimoRegistro.tmed), parseNum(registroAnioAnterior.tmed));
         } else if (ultimoRegistro) {
           document.getElementById('card1-val').innerText = formatNum(parseNum(ultimoRegistro.tmax));
-          document.getElementById('card2-val').innerText = formatNum(parseNum(ultimoRegistro.tmin));
+          document.getElementById('card2-val').innerText = formatNum(parseNum(ultimoRegistro.tmed));
         }
 
         // Selector Años
@@ -135,9 +135,9 @@
           selectorAnio.innerHTML += `<option value="${a}">${a}</option>`;
         });
 
-        // Renderizar Tablas con los promedios mensuales
-        renderizarTabla('tabla-roja', anios, promediosTmax, 'rojo');
-        renderizarTabla('tabla-verde', anios, promediosTmin, 'verde');
+        // Renderizar Tablas
+        renderizarTabla('tabla-roja', anios, promediosTmax, mediasAnualesTmax, 'rojo');
+        renderizarTabla('tabla-verde', anios, promediosTmed, mediasAnualesTmed, 'verde');
 
       } catch (error) {
         statusElement.className = "mb-4 p-2 bg-red-100 text-red-800 rounded border border-red-300 text-xs text-center font-bold";
@@ -146,7 +146,8 @@
     }
 
     function procesarAEMET(data) {
-      const acumulador = {};
+      const acumuladorMes = {};
+      const acumuladorAnio = {};
       const aniosSet = new Set();
       const mapaPorFecha = {};
 
@@ -160,53 +161,51 @@
 
         aniosSet.add(anio);
 
-        if (!acumulador[anio]) acumulador[anio] = {};
-        if (!acumulador[anio][mesIdx]) {
-          acumulador[anio][mesIdx] = { tmaxSum: 0, tmaxCnt: 0, tminSum: 0, tminCnt: 0 };
+        if (!acumuladorMes[anio]) acumuladorMes[anio] = {};
+        if (!acumuladorMes[anio][mesIdx]) {
+          acumuladorMes[anio][mesIdx] = { tmaxSum: 0, tmaxCnt: 0, tmedSum: 0, tmedCnt: 0 };
+        }
+
+        if (!acumuladorAnio[anio]) {
+          acumuladorAnio[anio] = { tmaxSum: 0, tmaxCnt: 0, tmedSum: 0, tmedCnt: 0 };
         }
 
         const vmax = parseNum(reg.tmax);
-        const vmin = parseNum(reg.tmin);
+        const vmed = parseNum(reg.tmed);
 
         if (vmax !== null) {
-          acumulador[anio][mesIdx].tmaxSum += vmax;
-          acumulador[anio][mesIdx].tmaxCnt++;
+          acumuladorMes[anio][mesIdx].tmaxSum += vmax;
+          acumuladorMes[anio][mesIdx].tmaxCnt++;
+          acumuladorAnio[anio].tmaxSum += vmax;
+          acumuladorAnio[anio].tmaxCnt++;
         }
-        if (vmin !== null) {
-          acumulador[anio][mesIdx].tminSum += vmin;
-          acumulador[anio][mesIdx].tminCnt++;
+        if (vmed !== null) {
+          acumuladorMes[anio][mesIdx].tmedSum += vmed;
+          acumuladorMes[anio][mesIdx].tmedCnt++;
+          acumuladorAnio[anio].tmedSum += vmed;
+          acumuladorAnio[anio].tmedCnt++;
         }
       });
 
       const anios = Array.from(aniosSet).sort((a, b) => a - b);
       const promediosTmax = {};
-      const promediosTmin = {};
+      const promediosTmed = {};
 
-      // Cálculo de promedios por mes y año
       MESES.forEach((mes, mIdx) => {
         promediosTmax[mes] = [];
-        promediosTmin[mes] = [];
+        promediosTmed[mes] = [];
 
         anios.forEach(anio => {
-          const celda = acumulador[anio]?.[mIdx];
+          const celda = acumuladorMes[anio]?.[mIdx];
 
-          // Promedio tmax
-          if (celda && celda.tmaxCnt > 0) {
-            promediosTmax[mes].push(celda.tmaxSum / celda.tmaxCnt);
-          } else {
-            promediosTmax[mes].push(null);
-          }
-
-          // Promedio tmin
-          if (celda && celda.tminCnt > 0) {
-            promediosTmin[mes].push(celda.tminSum / celda.tminCnt);
-          } else {
-            promediosTmin[mes].push(null);
-          }
+          promediosTmax[mes].push(celda && celda.tmaxCnt > 0 ? celda.tmaxSum / celda.tmaxCnt : null);
+          promediosTmed[mes].push(celda && celda.tmedCnt > 0 ? celda.tmedSum / celda.tmedCnt : null);
         });
       });
 
-      // Obtener el registro de la última fecha y el del año anterior para los KPIs
+      const mediasAnualesTmax = anios.map(a => acumuladorAnio[a].tmaxCnt > 0 ? acumuladorAnio[a].tmaxSum / acumuladorAnio[a].tmaxCnt : null);
+      const mediasAnualesTmed = anios.map(a => acumuladorAnio[a].tmedCnt > 0 ? acumuladorAnio[a].tmedSum / acumuladorAnio[a].tmedCnt : null);
+
       const ultimoRegistro = data[data.length - 1];
       let registroAnioAnterior = null;
 
@@ -219,7 +218,9 @@
       return {
         anios,
         promediosTmax,
-        promediosTmin,
+        promediosTmed,
+        mediasAnualesTmax,
+        mediasAnualesTmed,
         ultimoRegistro,
         registroAnioAnterior
       };
@@ -242,7 +243,7 @@
       }
     }
 
-    function renderizarTabla(idTabla, anios, datosMeses, tipoColor) {
+    function renderizarTabla(idTabla, anios, datosMeses, mediasAnuales, tipoColor) {
       const tabla = document.getElementById(idTabla);
       tabla.innerHTML = '';
 
@@ -251,17 +252,12 @@
       headerHTML += `</tr>`;
       tabla.innerHTML += headerHTML;
 
-      const acumuladorAnual = anios.map(() => ({ sum: 0, count: 0 }));
-
       MESES.forEach(mes => {
         let filaHTML = `<tr class="border-b"><td class="sticky-col text-left px-3 py-1 capitalize font-medium text-gray-700">${mes}</td>`;
         const valores = datosMeses[mes] || [];
 
-        valores.forEach((val, colIdx) => {
+        valores.forEach(val => {
           if (val !== null && val !== undefined) {
-            acumuladorAnual[colIdx].sum += val;
-            acumuladorAnual[colIdx].count += 1;
-
             const colorBg = calcularColorHeatmap(val, tipoColor);
             filaHTML += `<td style="background-color: ${colorBg};" class="font-normal text-gray-800">${formatNum(val)}</td>`;
           } else {
@@ -273,15 +269,10 @@
         tabla.innerHTML += filaHTML;
       });
 
-      // Fila inferior con el promedio global del año
+      // Fila Media Anual acumulada
       let footerHTML = `<tr class="border-t-2 border-gray-300 font-bold bg-gray-50"><td class="sticky-col text-left px-3 py-1 text-gray-800">Media</td>`;
-      acumuladorAnual.forEach(col => {
-        if (col.count > 0) {
-          const mediaAnual = col.sum / col.count;
-          footerHTML += `<td class="px-2 py-1">${formatNum(mediaAnual)}</td>`;
-        } else {
-          footerHTML += `<td></td>`;
-        }
+      mediasAnuales.forEach(mediaVal => {
+        footerHTML += `<td class="px-2 py-1">${formatNum(mediaVal)}</td>`;
       });
       footerHTML += `</tr>`;
       tabla.innerHTML += footerHTML;
