@@ -60,12 +60,10 @@
 
   <!-- TABLAS -->
   <div class="space-y-6">
-    <!-- Tabla Roja (T. Máximas) -->
     <div class="overflow-x-auto bg-white rounded-lg shadow border border-gray-300">
       <table id="tabla-roja" class="w-full border-collapse"></table>
     </div>
 
-    <!-- Tabla Verde (T. Medias) -->
     <div class="overflow-x-auto bg-white rounded-lg shadow border border-gray-300">
       <table id="tabla-verde" class="w-full border-collapse"></table>
     </div>
@@ -73,10 +71,12 @@
 
   <script>
     const RUTAS_JSON = [
-        'https://raw.githubusercontent.com/Zakkaryas/CuatroVientos/refs/heads/main/datos_estacion_3195.json'
+      'https://raw.githubusercontent.com/Zakkaryas/CuatroVientos/refs/heads/main/datos_estacion_3195.json'
     ];
 
     const MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+
+    let globalRawData = [];
 
     function parseNum(val) {
       if (val === undefined || val === null || val === "") return null;
@@ -106,43 +106,105 @@
     async function cargarDatos() {
       const statusElement = document.getElementById('status-message');
       try {
-        const rawData = await obtenerDatos();
+        globalRawData = await obtenerDatos();
         statusElement.style.display = 'none';
 
-        rawData.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+        globalRawData.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
 
-        const { anios, promediosTmax, promediosTmed, mediasAnualesTmax, mediasAnualesTmed, ultimoRegistro, registroAnioAnterior } = procesarAEMET(rawData);
-
-        // Actualizar Fecha
-        if (ultimoRegistro) {
-          const [yyyy, mm, dd] = ultimoRegistro.fecha.split('-');
-          document.getElementById('fecha-cargada').innerText = `${dd}/${mm}/${yyyy}`;
-        }
-
-        // Actualizar Tarjetas (TMAX y TMED del día frente a la misma fecha del año anterior)
-        if (ultimoRegistro && registroAnioAnterior) {
-          actualizarTarjeta('card1', parseNum(ultimoRegistro.tmax), parseNum(registroAnioAnterior.tmax));
-          actualizarTarjeta('card2', parseNum(ultimoRegistro.tmed), parseNum(registroAnioAnterior.tmed));
-        } else if (ultimoRegistro) {
-          document.getElementById('card1-val').innerText = formatNum(parseNum(ultimoRegistro.tmax));
-          document.getElementById('card2-val').innerText = formatNum(parseNum(ultimoRegistro.tmed));
-        }
-
-        // Selector Años
-        const selectorAnio = document.getElementById('filtro-anio');
-        selectorAnio.innerHTML = '<option value="Todas">Todas</option>';
-        anios.forEach(a => {
-          selectorAnio.innerHTML += `<option value="${a}">${a}</option>`;
+        inicializarFiltros();
+        actualizarDashboard();
+        
+        // Asignar eventos de escucha a los filtros
+        document.getElementById('filtro-anio').addEventListener('change', () => {
+          poblarDias();
+          actualizarDashboard();
         });
-
-        // Renderizar Tablas
-        renderizarTabla('tabla-roja', anios, promediosTmax, mediasAnualesTmax, 'rojo');
-        renderizarTabla('tabla-verde', anios, promediosTmed, mediasAnualesTmed, 'verde');
+        document.getElementById('filtro-mes').addEventListener('change', () => {
+          poblarDias();
+          actualizarDashboard();
+        });
+        document.getElementById('filtro-dia').addEventListener('change', actualizarDashboard);
 
       } catch (error) {
         statusElement.className = "mb-4 p-2 bg-red-100 text-red-800 rounded border border-red-300 text-xs text-center font-bold";
         statusElement.innerText = "Error al procesar el archivo 'datos.json'.";
       }
+    }
+
+    function inicializarFiltros() {
+      const aniosSet = new Set();
+      globalRawData.forEach(reg => {
+        if (reg.fecha) {
+          aniosSet.add(reg.fecha.split('-')[0]);
+        }
+      });
+
+      const selectorAnio = document.getElementById('filtro-anio');
+      selectorAnio.innerHTML = '<option value="Todas">Todas</option>';
+      Array.from(aniosSet).sort((a, b) => a - b).forEach(a => {
+        selectorAnio.innerHTML += `<option value="${a}">${a}</option>`;
+      });
+
+      const selectorMes = document.getElementById('filtro-mes');
+      selectorMes.innerHTML = '<option value="Todas">Todas</option>';
+      MESES.forEach((m, idx) => {
+        selectorMes.innerHTML += `<option value="${idx + 1}">${m}</option>`;
+      });
+
+      poblarDias();
+    }
+
+    function poblarDias() {
+      const selectorDia = document.getElementById('filtro-dia');
+      const valDiaActual = selectorDia.value;
+      selectorDia.innerHTML = '<option value="Todas">Todas</option>';
+      for (let i = 1; i <= 31; i++) {
+        const dStr = i < 10 ? `0${i}` : `${i}`;
+        selectorDia.innerHTML += `<option value="${dStr}">${i}</option>`;
+      }
+      selectorDia.value = valDiaActual || "Todas";
+    }
+
+    function actualizarDashboard() {
+      const fAnio = document.getElementById('filtro-anio').value;
+      const fMes = document.getElementById('filtro-mes').value;
+      const fDia = document.getElementById('filtro-dia').value;
+
+      // Filtrar datos según la selección actual
+      const datosFiltrados = globalRawData.filter(reg => {
+        if (!reg.fecha) return false;
+        const [yyyy, mm, dd] = reg.fecha.split('-');
+        if (fAnio !== "Todas" && yyyy !== fAnio) return false;
+        if (fMes !== "Todas" && parseInt(mm, 10) !== parseInt(fMes, 10)) return false;
+        if (fDia !== "Todas" && dd !== fDia) return false;
+        return true;
+      });
+
+      const { anios, promediosTmax, promediosTmed, mediasAnualesTmax, mediasAnualesTmed, ultimoRegistro, registroAnioAnterior } = procesarAEMET(datosFiltrados);
+
+      // Actualizar Fecha en cabecera
+      const regParaFecha = ultimoRegistro || globalRawData[globalRawData.length - 1];
+      if (regParaFecha) {
+        const [yyyy, mm, dd] = regParaFecha.fecha.split('-');
+        document.getElementById('fecha-cargada').innerText = `${dd}/${mm}/${yyyy}`;
+      }
+
+      // Actualizar KPIs
+      if (ultimoRegistro) {
+        actualizarTarjeta('card1', parseNum(ultimoRegistro.tmax), registroAnioAnterior ? parseNum(registroAnioAnterior.tmax) : null);
+        actualizarTarjeta('card2', parseNum(ultimoRegistro.tmed), registroAnioAnterior ? parseNum(registroAnioAnterior.tmed) : null);
+      } else {
+        document.getElementById('card1-val').innerText = '--';
+        document.getElementById('card1-ant').innerText = '--';
+        document.getElementById('card1-pct').innerText = '(0,00 %)';
+        document.getElementById('card2-val').innerText = '--';
+        document.getElementById('card2-ant').innerText = '--';
+        document.getElementById('card2-pct').innerText = '(0,00 %)';
+      }
+
+      // Renderizar Tablas
+      renderizarTabla('tabla-roja', anios, promediosTmax, mediasAnualesTmax, 'rojo');
+      renderizarTabla('tabla-verde', anios, promediosTmed, mediasAnualesTmed, 'verde');
     }
 
     function procesarAEMET(data) {
@@ -151,9 +213,10 @@
       const aniosSet = new Set();
       const mapaPorFecha = {};
 
+      globalRawData.forEach(reg => { if (reg.fecha) mapaPorFecha[reg.fecha] = reg; });
+
       data.forEach(reg => {
         if (!reg.fecha) return;
-        mapaPorFecha[reg.fecha] = reg;
 
         const [anioStr, mesStr] = reg.fecha.split('-');
         const anio = parseInt(anioStr, 10);
@@ -203,8 +266,8 @@
         });
       });
 
-      const mediasAnualesTmax = anios.map(a => acumuladorAnio[a].tmaxCnt > 0 ? acumuladorAnio[a].tmaxSum / acumuladorAnio[a].tmaxCnt : null);
-      const mediasAnualesTmed = anios.map(a => acumuladorAnio[a].tmedCnt > 0 ? acumuladorAnio[a].tmedSum / acumuladorAnio[a].tmedCnt : null);
+      const mediasAnualesTmax = anios.map(a => acumuladorAnio[a]?.tmaxCnt > 0 ? acumuladorAnio[a].tmaxSum / acumuladorAnio[a].tmaxCnt : null);
+      const mediasAnualesTmed = anios.map(a => acumuladorAnio[a]?.tmedCnt > 0 ? acumuladorAnio[a].tmedSum / acumuladorAnio[a].tmedCnt : null);
 
       const ultimoRegistro = data[data.length - 1];
       let registroAnioAnterior = null;
@@ -269,7 +332,6 @@
         tabla.innerHTML += filaHTML;
       });
 
-      // Fila Media Anual acumulada
       let footerHTML = `<tr class="border-t-2 border-gray-300 font-bold bg-gray-50"><td class="sticky-col text-left px-3 py-1 text-gray-800">Media</td>`;
       mediasAnuales.forEach(mediaVal => {
         footerHTML += `<td class="px-2 py-1">${formatNum(mediaVal)}</td>`;
