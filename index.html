@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simulador CuatroVientos - AEMET</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    th, td { text-align: center; padding: 2px 4px; font-size: 11px; white-space: nowrap; }
+    .sticky-col { position: sticky; left: 0; background-color: #f3f4f6; font-weight: bold; z-index: 10; }
+  </style>
+</head>
+<body class="bg-gray-100 p-4 text-gray-800 font-sans">
+
+  <!-- TOP BAR: Tarjetas y Filtros -->
+  <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+    
+    <!-- Tarjetas de indicadores -->
+    <div class="flex gap-4">
+      <div class="bg-white p-3 rounded-lg shadow border border-gray-300 text-center min-w-[130px]">
+        <div id="card1-val" class="text-2xl font-bold text-red-600">--</div>
+        <div class="text-xs text-gray-600">Anterior: <span id="card1-ant">--</span></div>
+        <div id="card1-pct" class="text-xs text-gray-600 font-semibold">(0,00 %)</div>
+      </div>
+      
+      <div class="bg-white p-3 rounded-lg shadow border border-gray-300 text-center min-w-[130px]">
+        <div id="card2-val" class="text-2xl font-bold text-green-600">--</div>
+        <div class="text-xs text-gray-600">Anterior: <span id="card2-ant">--</span></div>
+        <div id="card2-pct" class="text-xs text-gray-600 font-semibold">(0,00 %)</div>
+      </div>
+    </div>
+
+    <!-- Fecha Cargada -->
+    <div class="bg-white px-6 py-2 rounded-lg shadow border border-gray-300 text-center">
+      <div class="text-xs text-gray-500 font-medium">Última fecha cargada</div>
+      <div id="fecha-cargada" class="text-base font-bold">--/--/----</div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="flex gap-3 bg-white p-2 rounded-lg shadow border border-gray-300">
+      <div>
+        <label class="block text-[10px] text-gray-500">Año</label>
+        <select id="filtro-anio" class="border rounded px-2 py-1 text-xs"><option>Todas</option></select>
+      </div>
+      <div>
+        <label class="block text-[10px] text-gray-500">Mes</label>
+        <select id="filtro-mes" class="border rounded px-2 py-1 text-xs"><option>Todas</option></select>
+      </div>
+      <div>
+        <label class="block text-[10px] text-gray-500">Día</label>
+        <select id="filtro-dia" class="border rounded px-2 py-1 text-xs"><option>Todas</option></select>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABLAS DE DATOS -->
+  <div class="space-y-6">
+    <!-- Tabla Superior (T. Máximas) -->
+    <div class="overflow-x-auto bg-white rounded shadow border border-gray-300">
+      <table id="tabla-roja" class="w-full border-collapse"></table>
+    </div>
+
+    <!-- Tabla Inferior (Precipitaciones / T. Medias) -->
+    <div class="overflow-x-auto bg-white rounded shadow border border-gray-300">
+      <table id="tabla-verde" class="w-full border-collapse"></table>
+    </div>
+  </div>
+
+  <script>
+    const JSON_URL = 'https://raw.githubusercontent.com/zakkaryas/CuatroVientos/main/datos.json';
+    const NOMBRES_MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+
+    async function cargarDatos() {
+      try {
+        const response = await fetch(JSON_URL);
+        const rawData = await response.json();
+
+        // 1. Procesar el JSON plano a estructuras matriciales
+        const { anios, promediosTmax, promediosTmed, ultimaFecha, ultimoRegistro, penultimoRegistro } = procesarDatosAEMET(rawData);
+
+        // 2. Renderizar Top Bar
+        document.getElementById('fecha-cargada').innerText = ultimaFecha.split('-').reverse().join('/');
+        
+        if (ultimoRegistro && penultimoRegistro) {
+          actualizarTarjeta('card1', ultimoRegistro.tmax, penultimoRegistro.tmax);
+          actualizarTarjeta('card2', ultimoRegistro.tmed, penultimoRegistro.tmed);
+        }
+
+        // 3. Renderizar Tablas
+        renderizarTabla('tabla-roja', anios, promediosTmax, 'rojo');
+        renderizarTabla('tabla-verde', anios, promediosTmed, 'verde');
+
+      } catch (error) {
+        console.error("Error al procesar los datos:", error);
+      }
+    }
+
+    function procesarDatosAEMET(data) {
+      const acumulador = {};
+      const aniosSet = new Set();
+      
+      // Ordenar registros por fecha
+      data.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+
+      data.forEach(reg => {
+        if (!reg.fecha) return;
+        const [anio, mesStr] = reg.fecha.split('-');
+        const mesIdx = parseInt(mesStr, 10) - 1;
+
+        aniosSet.add(parseInt(anio, 10));
+
+        if (!acumulador[anio]) acumulador[anio] = {};
+        if (!acumulador[anio][mesIdx]) {
+          acumulador[anio][mesIdx] = { tmaxSum: 0, tmaxCnt: 0, tmedSum: 0, tmedCnt: 0 };
+        }
+
+        if (reg.tmax !== undefined && reg.tmax !== null) {
+          acumulador[anio][mesIdx].tmaxSum += parseFloat(reg.tmax);
+          acumulador[anio][mesIdx].tmaxCnt++;
+        }
+        if (reg.tmed !== undefined && reg.tmed !== null) {
+          acumulador[anio][mesIdx].tmedSum += parseFloat(reg.tmed);
+          acumulador[anio][mesIdx].tmedCnt++;
+        }
+      });
+
+      const anios = Array.from(aniosSet).sort((a, b) => a - b);
+      const promediosTmax = {};
+      const promediosTmed = {};
+
+      NOMBRES_MESES.forEach((mes, mIdx) => {
+        promediosTmax[mes] = [];
+        promediosTmed[mes] = [];
+
+        anios.forEach(anio => {
+          const celda = acumulador[anio]?.[mIdx];
+          if (celda && celda.tmaxCnt > 0) {
+            promediosTmax[mes].push(celda.tmaxSum / celda.tmaxCnt);
+          } else {
+            promediosTmax[mes].push(null);
+          }
+
+          if (celda && celda.tmedCnt > 0) {
+            promediosTmed[mes].push(celda.tmedSum / celda.tmedCnt);
+          } else {
+            promediosTmed[mes].push(null);
+          }
+        });
+      });
+
+      const ultimoRegistro = data[data.length - 1];
+      const penultimoRegistro = data[data.length - 2];
+
+      return {
+        anios,
+        promediosTmax,
+        promediosTmed,
+        ultimaFecha: ultimoRegistro ? ultimoRegistro.fecha : '--',
+        ultimoRegistro,
+        penultimoRegistro
+      };
+    }
+
+    function actualizarTarjeta(idPrefix, valActual, valAnterior) {
+      if (valActual === undefined || valAnterior === undefined) return;
+      const pct = ((valActual - valAnterior) / valAnterior) * 100;
+      const pctSigno = pct >= 0 ? '+' : '';
+
+      document.getElementById(`${idPrefix}-val`).innerText = valActual.toFixed(2).replace('.', ',');
+      document.getElementById(`${idPrefix}-ant`).innerText = valAnterior.toFixed(2).replace('.', ',');
+      document.getElementById(`${idPrefix}-pct`).innerText = `(${pctSigno}${pct.toFixed(2).replace('.', ',')} %)`;
+    }
+
+    function renderizarTabla(idTabla, anios, datosMeses, tipoColor) {
+      const tabla = document.getElementById(idTabla);
+      tabla.innerHTML = '';
+
+      let headerHTML = `<tr class="border-b bg-gray-50"><th class="sticky-col">Mes</th>`;
+      anios.forEach(a => headerHTML += `<th>${a}</th>`);
+      headerHTML += `</tr>`;
+      tabla.innerHTML += headerHTML;
+
+      NOMBRES_MESES.forEach(mes => {
+        let filaHTML = `<tr class="border-b"><td class="sticky-col capitalize">${mes}</td>`;
+        const valores = datosMeses[mes] || [];
+
+        valores.forEach(val => {
+          if (val !== null && val !== undefined) {
+            const colorBg = calcularColorHeatmap(val, tipoColor);
+            filaHTML += `<td style="background-color: ${colorBg};">${val.toFixed(2).replace('.', ',')}</td>`;
+          } else {
+            filaHTML += `<td></td>`;
+          }
+        });
+
+        filaHTML += `</tr>`;
+        tabla.innerHTML += filaHTML;
+      });
+    }
+
+    function calcularColorHeatmap(valor, tipo) {
+      if (tipo === 'rojo') {
+        const min = 8, max = 36;
+        const pct = Math.min(Math.max((valor - min) / (max - min), 0), 1);
+        const r = 255;
+        const g = Math.round(255 - (pct * 190));
+        const b = Math.round(255 - (pct * 210));
+        return `rgb(${r}, ${g}, ${b})`;
+      } else {
+        const min = -1, max = 22;
+        const pct = Math.min(Math.max((valor - min) / (max - min), 0), 1);
+        const r = Math.round(180 - (pct * 150));
+        const g = Math.round(230 + (pct * 25));
+        const b = Math.round(180 - (pct * 120));
+        return `rgb(${r}, ${g}, ${b})`;
+      }
+    }
+
+    cargarDatos();
+  </script>
+</body>
+</html>
