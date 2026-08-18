@@ -43,8 +43,7 @@ def setup_robust_logging(log_file='aemet_download.log'):
 logger = setup_robust_logging()
 
 # 2. CONFIGURACIÓN
-#DIRECTORIO_DESTINO = r"C:\M\MARIO\Py\CuatroVientos"
-#ARCHIVO_AGREGADO = os.path.join(DIRECTORIO_DESTINO, "datos_estacion_3195.json")
+
 
 ARCHIVO_AGREGADO = Path(__file__).parent / "datos_estacion_3195.json"
 DIRECTORIO_DESTINO = Path(__file__).parent
