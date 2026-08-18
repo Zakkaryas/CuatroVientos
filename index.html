@@ -3,73 +3,84 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Simulador CuatroVientos - AEMET</title>
+  <title>Simulador CuatroVientos</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    th, td { text-align: center; padding: 3px 5px; font-size: 11px; white-space: nowrap; }
-    .sticky-col { position: sticky; left: 0; background-color: #f3f4f6; font-weight: bold; z-index: 10; }
+    th, td { text-align: center; padding: 3px 4px; font-size: 11px; white-space: nowrap; }
+    .sticky-col { position: sticky; left: 0; background-color: #ffffff; font-weight: bold; z-index: 10; border-right: 1px solid #e5e7eb; }
+    .card-shadow { box-shadow: 0 4px 10px rgba(0,0,0,0.12); }
   </style>
 </head>
-<body class="bg-gray-100 p-4 text-gray-800 font-sans">
+<body class="bg-gray-200 p-4 text-gray-800 font-sans">
 
-  <!-- TOP BAR: Tarjetas y Filtros -->
+  <div id="status-message" class="mb-4 p-2 bg-blue-100 text-blue-800 rounded border border-blue-300 text-xs text-center">
+    Cargando datos...
+  </div>
+
+  <!-- TOP BAR -->
   <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
     
     <!-- Tarjetas -->
     <div class="flex gap-4">
-      <div class="bg-white p-3 rounded-lg shadow border border-gray-300 text-center min-w-[130px]">
-        <div id="card1-val" class="text-2xl font-bold text-red-600">--</div>
-        <div class="text-xs text-gray-600">Anterior: <span id="card1-ant">--</span></div>
-        <div id="card1-pct" class="text-xs text-gray-600 font-semibold">(0,00 %)</div>
+      <div class="bg-white px-5 py-2 rounded-xl card-shadow border border-gray-200 text-center min-w-[120px]">
+        <div class="text-2xl font-bold text-red-600"><span id="card1-val">--</span><span class="text-red-500 ml-0.5">!</span></div>
+        <div class="text-xs text-gray-700 font-medium mt-0.5">Anterior: <span id="card1-ant">--</span></div>
+        <div id="card1-pct" class="text-xs text-gray-700 font-semibold">(+0,00 %)</div>
       </div>
       
-      <div class="bg-white p-3 rounded-lg shadow border border-gray-300 text-center min-w-[130px]">
-        <div id="card2-val" class="text-2xl font-bold text-green-600">--</div>
-        <div class="text-xs text-gray-600">Anterior: <span id="card2-ant">--</span></div>
-        <div id="card2-pct" class="text-xs text-gray-600 font-semibold">(0,00 %)</div>
+      <div class="bg-white px-5 py-2 rounded-xl card-shadow border border-gray-200 text-center min-w-[120px]">
+        <div class="text-2xl font-bold text-red-600"><span id="card2-val">--</span><span class="text-red-500 ml-0.5">!</span></div>
+        <div class="text-xs text-gray-700 font-medium mt-0.5">Anterior: <span id="card2-ant">--</span></div>
+        <div id="card2-pct" class="text-xs text-gray-700 font-semibold">(+0,00 %)</div>
       </div>
     </div>
 
     <!-- Fecha Cargada -->
-    <div class="bg-white px-6 py-2 rounded-lg shadow border border-gray-300 text-center">
-      <div class="text-xs text-gray-500 font-medium">Última fecha cargada</div>
+    <div class="bg-white px-8 py-2 rounded-xl card-shadow border border-gray-200 text-center">
+      <div class="text-xs text-gray-600 font-medium mb-1">Última fecha cargada</div>
       <div id="fecha-cargada" class="text-base font-bold">--/--/----</div>
     </div>
 
     <!-- Filtros -->
-    <div class="flex gap-3 bg-white p-2 rounded-lg shadow border border-gray-300">
+    <div class="flex gap-3 bg-white px-3 py-2 rounded-xl card-shadow border border-gray-200">
       <div>
-        <label class="block text-[10px] text-gray-500">Año</label>
-        <select id="filtro-anio" class="border rounded px-2 py-1 text-xs"><option>Todas</option></select>
+        <label class="block text-[10px] text-gray-500 mb-0.5">Año</label>
+        <select id="filtro-anio" class="border rounded px-2 py-0.5 text-xs"><option value="Todas">Todas</option></select>
       </div>
       <div>
-        <label class="block text-[10px] text-gray-500">Mes</label>
-        <select id="filtro-mes" class="border rounded px-2 py-1 text-xs"><option>Todas</option></select>
+        <label class="block text-[10px] text-gray-500 mb-0.5">Mes</label>
+        <select id="filtro-mes" class="border rounded px-2 py-0.5 text-xs"><option value="Todas">Todas</option></select>
       </div>
       <div>
-        <label class="block text-[10px] text-gray-500">Día</label>
-        <select id="filtro-dia" class="border rounded px-2 py-1 text-xs"><option>Todas</option></select>
+        <label class="block text-[10px] text-gray-500 mb-0.5">Día</label>
+        <select id="filtro-dia" class="border rounded px-2 py-0.5 text-xs"><option value="Todas">Todas</option></select>
       </div>
     </div>
   </div>
 
-  <!-- TABLAS DE DATOS -->
+  <!-- TABLAS -->
   <div class="space-y-6">
-    <div class="overflow-x-auto bg-white rounded shadow border border-gray-300">
+    <!-- Tabla Superior (Máximas absolutas) -->
+    <div class="overflow-x-auto bg-white rounded-lg shadow border border-gray-300">
       <table id="tabla-roja" class="w-full border-collapse"></table>
     </div>
 
-    <div class="overflow-x-auto bg-white rounded shadow border border-gray-300">
+    <!-- Tabla Inferior (Mínimas / Medias) -->
+    <div class="overflow-x-auto bg-white rounded-lg shadow border border-gray-300">
       <table id="tabla-verde" class="w-full border-collapse"></table>
     </div>
   </div>
 
   <script>
-    // Usamos jsDelivr CDN para evitar los bloqueos CORS de GitHub Raw
-    const JSON_URL = 'https://raw.githubusercontent.com/Zakkaryas/CuatroVientos/main/datos_estacion_3195.json';
-    const NOMBRES_MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+    const RUTAS_JSON = [
+      './datos.json',
+      'datos.json',
+      'https://cdn.jsdelivr.net/gh/zakkaryas/CuatroVientos/datos.json',
+      'https://raw.githubusercontent.com/zakkaryas/CuatroVientos/main/datos.json'
+    ];
 
-    // Convierte valores con coma ("12,5") o números directos a Float
+    const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+
     function parseNum(val) {
       if (val === undefined || val === null || val === "") return null;
       if (typeof val === 'number') return val;
@@ -77,94 +88,119 @@
       return isNaN(parsed) ? null : parsed;
     }
 
-    async function cargarDatos() {
-      try {
-        const response = await fetch(JSON_URL);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        
-        const rawData = await response.json();
+    function formatNum(val) {
+      if (val === null || val === undefined) return '';
+      return val.toFixed(2).replace('.', ',');
+    }
 
-        // Ordenar datos por fecha
+    async function obtenerDatos() {
+      for (const url of RUTAS_JSON) {
+        try {
+          const response = await fetch(url);
+          if (response.ok) {
+            const data = await response.json();
+            if (Array.isArray(data) && data.length > 0) return data;
+          }
+        } catch (e) {}
+      }
+      throw new Error("No se pudo cargar el JSON.");
+    }
+
+    async function cargarDatos() {
+      const statusElement = document.getElementById('status-message');
+      try {
+        const rawData = await obtenerDatos();
+        statusElement.style.display = 'none';
+
         rawData.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
 
-        const { anios, promediosTmax, promediosTmed, ultimoRegistro, penultimoRegistro } = procesarDatosAEMET(rawData);
+        const { anios, tablaRoja, tablaVerde, ultimoRegistro, penultimoRegistro } = procesarAEMET(rawData);
 
-        // Actualizar Top Bar
+        // Actualizar Fecha
         if (ultimoRegistro) {
-          document.getElementById('fecha-cargada').innerText = ultimoRegistro.fecha.split('-').reverse().join('/');
+          const [yyyy, mm, dd] = ultimoRegistro.fecha.split('-');
+          document.getElementById('fecha-cargada').innerText = `${dd}/${mm}/${yyyy}`;
         }
-        
+
+        // Actualizar Tarjetas
         if (ultimoRegistro && penultimoRegistro) {
           actualizarTarjeta('card1', parseNum(ultimoRegistro.tmax), parseNum(penultimoRegistro.tmax));
-          actualizarTarjeta('card2', parseNum(ultimoRegistro.tmed), parseNum(penultimoRegistro.tmed));
+          actualizarTarjeta('card2', parseNum(ultimoRegistro.tmin ?? ultimoRegistro.tmed), parseNum(penultimoRegistro.tmin ?? penultimoRegistro.tmed));
         }
 
-        // Poblar Selector de Años
+        // Selector Años
         const selectorAnio = document.getElementById('filtro-anio');
-        selectorAnio.innerHTML = '<option>Todas</option>';
+        selectorAnio.innerHTML = '<option value="Todas">Todas</option>';
         anios.forEach(a => {
           selectorAnio.innerHTML += `<option value="${a}">${a}</option>`;
         });
 
         // Renderizar Tablas
-        renderizarTabla('tabla-roja', anios, promediosTmax, 'rojo');
-        renderizarTabla('tabla-verde', anios, promediosTmed, 'verde');
+        renderizarTabla('tabla-roja', anios, tablaRoja, 'rojo');
+        renderizarTabla('tabla-verde', anios, tablaVerde, 'verde');
 
       } catch (error) {
-        console.error("Error al cargar los datos:", error);
-        alert("No se pudieron cargar los datos del JSON. Verifica que la ruta o el nombre del archivo en GitHub sea 'datos.json'.");
+        statusElement.className = "mb-4 p-2 bg-red-100 text-red-800 rounded border border-red-300 text-xs text-center font-bold";
+        statusElement.innerText = "Error: Verifica que el archivo 'datos.json' existe en tu repositorio.";
       }
     }
 
-    function procesarDatosAEMET(data) {
+    function procesarAEMET(data) {
       const acumulador = {};
       const aniosSet = new Set();
 
       data.forEach(reg => {
         if (!reg.fecha) return;
-        const partes = reg.fecha.split('-');
-        const anio = parseInt(partes[0], 10);
-        const mesIdx = parseInt(partes[1], 10) - 1;
+        const [anioStr, mesStr] = reg.fecha.split('-');
+        const anio = parseInt(anioStr, 10);
+        const mesIdx = parseInt(mesStr, 10) - 1;
 
         aniosSet.add(anio);
 
         if (!acumulador[anio]) acumulador[anio] = {};
         if (!acumulador[anio][mesIdx]) {
-          acumulador[anio][mesIdx] = { tmaxSum: 0, tmaxCnt: 0, tmedSum: 0, tmedCnt: 0 };
+          acumulador[anio][mesIdx] = { tmaxList: [], tminList: [] };
         }
 
-        const vMax = parseNum(reg.tmax);
-        const vMed = parseNum(reg.tmed);
+        const vmax = parseNum(reg.tmax);
+        const vmin = parseNum(reg.tmin ?? reg.tmed);
 
-        if (vMax !== null) {
-          acumulador[anio][mesIdx].tmaxSum += vMax;
-          acumulador[anio][mesIdx].tmaxCnt++;
-        }
-        if (vMed !== null) {
-          acumulador[anio][mesIdx].tmedSum += vMed;
-          acumulador[anio][mesIdx].tmedCnt++;
-        }
+        if (vmax !== null) acumulador[anio][mesIdx].tmaxList.push(vmax);
+        if (vmin !== null) acumulador[anio][mesIdx].tminList.push(vmin);
       });
 
       const anios = Array.from(aniosSet).sort((a, b) => a - b);
-      const promediosTmax = {};
-      const promediosTmed = {};
+      const tablaRoja = {};
+      const tablaVerde = {};
 
-      NOMBRES_MESES.forEach((mes, mIdx) => {
-        promediosTmax[mes] = [];
-        promediosTmed[mes] = [];
+      MESES.forEach((mes, mIdx) => {
+        tablaRoja[mes] = [];
+        tablaVerde[mes] = [];
 
         anios.forEach(anio => {
           const celda = acumulador[anio]?.[mIdx];
-          promediosTmax[mes].push(celda && celda.tmaxCnt > 0 ? celda.tmaxSum / celda.tmaxCnt : null);
-          promediosTmed[mes].push(celda && celda.tmedCnt > 0 ? celda.tmedSum / celda.tmedCnt : null);
+
+          // Tabla Roja: Valor Máximo del mes
+          if (celda && celda.tmaxList.length > 0) {
+            tablaRoja[mes].push(Math.max(...celda.tmaxList));
+          } else {
+            tablaRoja[mes].push(null);
+          }
+
+          // Tabla Verde: Mínima / Media del mes
+          if (celda && celda.tminList.length > 0) {
+            const minVal = Math.min(...celda.tminList);
+            tablaVerde[mes].push(minVal);
+          } else {
+            tablaVerde[mes].push(null);
+          }
         });
       });
 
       return {
         anios,
-        promediosTmax,
-        promediosTmed,
+        tablaRoja,
+        tablaVerde,
         ultimoRegistro: data[data.length - 1],
         penultimoRegistro: data[data.length - 2]
       };
@@ -175,28 +211,35 @@
       const pct = ((valActual - valAnterior) / Math.abs(valAnterior)) * 100;
       const pctSigno = pct >= 0 ? '+' : '';
 
-      document.getElementById(`${idPrefix}-val`).innerText = valActual.toFixed(2).replace('.', ',');
-      document.getElementById(`${idPrefix}-ant`).innerText = valAnterior.toFixed(2).replace('.', ',');
-      document.getElementById(`${idPrefix}-pct`).innerText = `(${pctSigno}${pct.toFixed(2).replace('.', ',')} %)`;
+      document.getElementById(`${idPrefix}-val`).innerText = formatNum(valActual);
+      document.getElementById(`${idPrefix}-ant`).innerText = formatNum(valAnterior);
+      document.getElementById(`${idPrefix}-pct`).innerText = `(${pctSigno}${formatNum(pct)} %)`;
     }
 
     function renderizarTabla(idTabla, anios, datosMeses, tipoColor) {
       const tabla = document.getElementById(idTabla);
       tabla.innerHTML = '';
 
-      let headerHTML = `<tr class="border-b bg-gray-50"><th class="sticky-col">Mes</th>`;
-      anios.forEach(a => headerHTML += `<th>${a}</th>`);
+      // Encabezado Años
+      let headerHTML = `<tr class="border-b bg-gray-50"><th class="sticky-col text-left px-3 py-1">Mes</th>`;
+      anios.forEach(a => headerHTML += `<th class="px-2 py-1 font-semibold text-gray-700">${a}</th>`);
       headerHTML += `</tr>`;
       tabla.innerHTML += headerHTML;
 
-      NOMBRES_MESES.forEach(mes => {
-        let filaHTML = `<tr class="border-b"><td class="sticky-col capitalize">${mes}</td>`;
+      const acumuladorAnual = anios.map(() => ({ sum: 0, count: 0 }));
+
+      // Filas por Mes
+      MESES.forEach(mes => {
+        let filaHTML = `<tr class="border-b"><td class="sticky-col text-left px-3 py-1 capitalize font-medium text-gray-700">${mes}</td>`;
         const valores = datosMeses[mes] || [];
 
-        valores.forEach(val => {
+        valores.forEach((val, colIdx) => {
           if (val !== null && val !== undefined) {
+            acumuladorAnual[colIdx].sum += val;
+            acumuladorAnual[colIdx].count += 1;
+
             const colorBg = calcularColorHeatmap(val, tipoColor);
-            filaHTML += `<td style="background-color: ${colorBg};">${val.toFixed(2).replace('.', ',')}</td>`;
+            filaHTML += `<td style="background-color: ${colorBg};" class="font-normal text-gray-800">${formatNum(val)}</td>`;
           } else {
             filaHTML += `<td></td>`;
           }
@@ -205,6 +248,19 @@
         filaHTML += `</tr>`;
         tabla.innerHTML += filaHTML;
       });
+
+      // Fila de Promedios Anuales (Pie de tabla)
+      let footerHTML = `<tr class="border-t-2 border-gray-300 font-bold bg-gray-50"><td class="sticky-col text-left px-3 py-1 text-gray-800">Media</td>`;
+      acumuladorAnual.forEach(col => {
+        if (col.count > 0) {
+          const mediaAnual = col.sum / col.count;
+          footerHTML += `<td class="px-2 py-1">${formatNum(mediaAnual)}</td>`;
+        } else {
+          footerHTML += `<td></td>`;
+        }
+      });
+      footerHTML += `</tr>`;
+      tabla.innerHTML += footerHTML;
     }
 
     function calcularColorHeatmap(valor, tipo) {
@@ -215,6 +271,7 @@
       } else {
         const min = -1, max = 22;
         const pct = Math.min(Math.max((valor - min) / (max - min), 0), 1);
+        if (pct < 0.25) return `rgb(207, 232, 255)`;
         return `rgb(${Math.round(180 - (pct * 150))}, ${Math.round(230 + (pct * 25))}, ${Math.round(180 - (pct * 120))})`;
       }
     }
