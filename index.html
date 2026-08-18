@@ -6,7 +6,7 @@
   <title>Simulador CuatroVientos - AEMET</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    th, td { text-align: center; padding: 2px 4px; font-size: 11px; white-space: nowrap; }
+    th, td { text-align: center; padding: 3px 5px; font-size: 11px; white-space: nowrap; }
     .sticky-col { position: sticky; left: 0; background-color: #f3f4f6; font-weight: bold; z-index: 10; }
   </style>
 </head>
@@ -15,7 +15,7 @@
   <!-- TOP BAR: Tarjetas y Filtros -->
   <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
     
-    <!-- Tarjetas de indicadores -->
+    <!-- Tarjetas -->
     <div class="flex gap-4">
       <div class="bg-white p-3 rounded-lg shadow border border-gray-300 text-center min-w-[130px]">
         <div id="card1-val" class="text-2xl font-bold text-red-600">--</div>
@@ -55,71 +55,93 @@
 
   <!-- TABLAS DE DATOS -->
   <div class="space-y-6">
-    <!-- Tabla Superior (T. Máximas) -->
     <div class="overflow-x-auto bg-white rounded shadow border border-gray-300">
       <table id="tabla-roja" class="w-full border-collapse"></table>
     </div>
 
-    <!-- Tabla Inferior (Precipitaciones / T. Medias) -->
     <div class="overflow-x-auto bg-white rounded shadow border border-gray-300">
       <table id="tabla-verde" class="w-full border-collapse"></table>
     </div>
   </div>
 
   <script>
-    const JSON_URL = 'https://raw.githubusercontent.com/zakkaryas/CuatroVientos/main/datos.json';
+    // Usamos jsDelivr CDN para evitar los bloqueos CORS de GitHub Raw
+    const JSON_URL = 'https://cdn.jsdelivr.net/gh/zakkaryas/CuatroVientos/datos.json';
     const NOMBRES_MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+
+    // Convierte valores con coma ("12,5") o números directos a Float
+    function parseNum(val) {
+      if (val === undefined || val === null || val === "") return null;
+      if (typeof val === 'number') return val;
+      const parsed = parseFloat(val.toString().replace(',', '.'));
+      return isNaN(parsed) ? null : parsed;
+    }
 
     async function cargarDatos() {
       try {
         const response = await fetch(JSON_URL);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        
         const rawData = await response.json();
 
-        // 1. Procesar el JSON plano a estructuras matriciales
-        const { anios, promediosTmax, promediosTmed, ultimaFecha, ultimoRegistro, penultimoRegistro } = procesarDatosAEMET(rawData);
+        // Ordenar datos por fecha
+        rawData.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
 
-        // 2. Renderizar Top Bar
-        document.getElementById('fecha-cargada').innerText = ultimaFecha.split('-').reverse().join('/');
+        const { anios, promediosTmax, promediosTmed, ultimoRegistro, penultimoRegistro } = procesarDatosAEMET(rawData);
+
+        // Actualizar Top Bar
+        if (ultimoRegistro) {
+          document.getElementById('fecha-cargada').innerText = ultimoRegistro.fecha.split('-').reverse().join('/');
+        }
         
         if (ultimoRegistro && penultimoRegistro) {
-          actualizarTarjeta('card1', ultimoRegistro.tmax, penultimoRegistro.tmax);
-          actualizarTarjeta('card2', ultimoRegistro.tmed, penultimoRegistro.tmed);
+          actualizarTarjeta('card1', parseNum(ultimoRegistro.tmax), parseNum(penultimoRegistro.tmax));
+          actualizarTarjeta('card2', parseNum(ultimoRegistro.tmed), parseNum(penultimoRegistro.tmed));
         }
 
-        // 3. Renderizar Tablas
+        // Poblar Selector de Años
+        const selectorAnio = document.getElementById('filtro-anio');
+        selectorAnio.innerHTML = '<option>Todas</option>';
+        anios.forEach(a => {
+          selectorAnio.innerHTML += `<option value="${a}">${a}</option>`;
+        });
+
+        // Renderizar Tablas
         renderizarTabla('tabla-roja', anios, promediosTmax, 'rojo');
         renderizarTabla('tabla-verde', anios, promediosTmed, 'verde');
 
       } catch (error) {
-        console.error("Error al procesar los datos:", error);
+        console.error("Error al cargar los datos:", error);
+        alert("No se pudieron cargar los datos del JSON. Verifica que la ruta o el nombre del archivo en GitHub sea 'datos.json'.");
       }
     }
 
     function procesarDatosAEMET(data) {
       const acumulador = {};
       const aniosSet = new Set();
-      
-      // Ordenar registros por fecha
-      data.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
 
       data.forEach(reg => {
         if (!reg.fecha) return;
-        const [anio, mesStr] = reg.fecha.split('-');
-        const mesIdx = parseInt(mesStr, 10) - 1;
+        const partes = reg.fecha.split('-');
+        const anio = parseInt(partes[0], 10);
+        const mesIdx = parseInt(partes[1], 10) - 1;
 
-        aniosSet.add(parseInt(anio, 10));
+        aniosSet.add(anio);
 
         if (!acumulador[anio]) acumulador[anio] = {};
         if (!acumulador[anio][mesIdx]) {
           acumulador[anio][mesIdx] = { tmaxSum: 0, tmaxCnt: 0, tmedSum: 0, tmedCnt: 0 };
         }
 
-        if (reg.tmax !== undefined && reg.tmax !== null) {
-          acumulador[anio][mesIdx].tmaxSum += parseFloat(reg.tmax);
+        const vMax = parseNum(reg.tmax);
+        const vMed = parseNum(reg.tmed);
+
+        if (vMax !== null) {
+          acumulador[anio][mesIdx].tmaxSum += vMax;
           acumulador[anio][mesIdx].tmaxCnt++;
         }
-        if (reg.tmed !== undefined && reg.tmed !== null) {
-          acumulador[anio][mesIdx].tmedSum += parseFloat(reg.tmed);
+        if (vMed !== null) {
+          acumulador[anio][mesIdx].tmedSum += vMed;
           acumulador[anio][mesIdx].tmedCnt++;
         }
       });
@@ -134,36 +156,23 @@
 
         anios.forEach(anio => {
           const celda = acumulador[anio]?.[mIdx];
-          if (celda && celda.tmaxCnt > 0) {
-            promediosTmax[mes].push(celda.tmaxSum / celda.tmaxCnt);
-          } else {
-            promediosTmax[mes].push(null);
-          }
-
-          if (celda && celda.tmedCnt > 0) {
-            promediosTmed[mes].push(celda.tmedSum / celda.tmedCnt);
-          } else {
-            promediosTmed[mes].push(null);
-          }
+          promediosTmax[mes].push(celda && celda.tmaxCnt > 0 ? celda.tmaxSum / celda.tmaxCnt : null);
+          promediosTmed[mes].push(celda && celda.tmedCnt > 0 ? celda.tmedSum / celda.tmedCnt : null);
         });
       });
-
-      const ultimoRegistro = data[data.length - 1];
-      const penultimoRegistro = data[data.length - 2];
 
       return {
         anios,
         promediosTmax,
         promediosTmed,
-        ultimaFecha: ultimoRegistro ? ultimoRegistro.fecha : '--',
-        ultimoRegistro,
-        penultimoRegistro
+        ultimoRegistro: data[data.length - 1],
+        penultimoRegistro: data[data.length - 2]
       };
     }
 
     function actualizarTarjeta(idPrefix, valActual, valAnterior) {
-      if (valActual === undefined || valAnterior === undefined) return;
-      const pct = ((valActual - valAnterior) / valAnterior) * 100;
+      if (valActual === null || valAnterior === null) return;
+      const pct = ((valActual - valAnterior) / Math.abs(valAnterior)) * 100;
       const pctSigno = pct >= 0 ? '+' : '';
 
       document.getElementById(`${idPrefix}-val`).innerText = valActual.toFixed(2).replace('.', ',');
@@ -202,17 +211,11 @@
       if (tipo === 'rojo') {
         const min = 8, max = 36;
         const pct = Math.min(Math.max((valor - min) / (max - min), 0), 1);
-        const r = 255;
-        const g = Math.round(255 - (pct * 190));
-        const b = Math.round(255 - (pct * 210));
-        return `rgb(${r}, ${g}, ${b})`;
+        return `rgb(255, ${Math.round(255 - (pct * 190))}, ${Math.round(255 - (pct * 210))})`;
       } else {
         const min = -1, max = 22;
         const pct = Math.min(Math.max((valor - min) / (max - min), 0), 1);
-        const r = Math.round(180 - (pct * 150));
-        const g = Math.round(230 + (pct * 25));
-        const b = Math.round(180 - (pct * 120));
-        return `rgb(${r}, ${g}, ${b})`;
+        return `rgb(${Math.round(180 - (pct * 150))}, ${Math.round(230 + (pct * 25))}, ${Math.round(180 - (pct * 120))})`;
       }
     }
 
