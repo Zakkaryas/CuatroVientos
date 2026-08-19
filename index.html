@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cambio Climático · Estación Meteorológica</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0A1220;
+    --bg-panel: #0F1C30;
+    --bg-panel-2: #142238;
+    --line: #1E3049;
+    --text: #EAF0F6;
+    --text-muted: #7C93AC;
+    --cold: #4A90D9;
+    --hot: #E2543D;
+    --gold: #E8B84B;
+    --font-display: 'Fraunces', serif;
+    --font-body: 'Inter', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  body{
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    padding-bottom: 60px;
+  }
+
+  header{
+    padding: 26px 20px 16px;
+    background: var(--bg-panel);
+    border-bottom: 1px solid var(--line);
+  }
+  .eyebrow{
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--gold);
+    display:flex; align-items:center; gap:8px;
+    margin-bottom: 10px;
+  }
+  .eyebrow .dot{
+    width:7px; height:7px; border-radius:50%;
+    background: var(--hot);
+    box-shadow: 0 0 8px var(--hot);
+  }
+  h1{
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: clamp(26px, 7.5vw, 36px);
+    line-height: 1.08;
+    letter-spacing: -0.01em;
+    margin-bottom: 6px;
+  }
+  .subtitle{
+    color: var(--text-muted);
+    font-size: 13.5px;
+  }
+
+  /* ---------- WARMING STRIPES (signature) ---------- */
+  #stripes-wrap{
+    width:100%;
+    height: 54px;
+  }
+  #stripes{ width:100%; height:100%; display:block; }
+  .stripes-caption{
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--text-muted);
+    padding: 6px 20px 0;
+    display:flex;
+    justify-content: space-between;
+    background: var(--bg-panel);
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  /* ---------- HEADLINE STAT ---------- */
+  .headline{
+    padding: 26px 20px 20px;
+    text-align:center;
+    border-bottom: 1px solid var(--line);
+  }
+  .headline .delta{
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: clamp(48px, 18vw, 72px);
+    line-height: 1;
+  }
+  .headline .delta.hot{ color: var(--hot); }
+  .headline .delta.cold{ color: var(--cold); }
+  .headline .delta-label{
+    margin-top: 8px;
+    font-size: 14px;
+    color: var(--text-muted);
+    max-width: 420px;
+    margin-left:auto; margin-right:auto;
+  }
+  .headline .delta-label b{ color: var(--text); font-weight: 600; }
+
+  .mini-stats{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+  .mini-stat{
+    background: var(--bg-panel);
+    padding: 14px 12px;
+    text-align:center;
+  }
+  .mini-stat .value{
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: 19px;
+  }
+  .mini-stat .label{
+    margin-top: 3px;
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  /* ---------- SECTIONS ---------- */
+  .section-label{
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    padding: 24px 20px 12px;
+  }
+  .section-sub{
+    padding: 0 20px 10px;
+    font-size: 12.5px;
+    color: var(--text-muted);
+  }
+
+  #month-chart-wrap, #trend-chart-wrap, #hot-chart-wrap, #trop-chart-wrap{
+    padding: 0 12px;
+  }
+  #month-chart, #trend-chart, #hot-chart, #trop-chart{ width:100%; display:block; }
+  #trop-chart-wrap{ margin-top: 6px; }
+
+  .legend{
+    display:flex;
+    gap: 18px;
+    padding: 10px 20px 4px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .legend span{ display:flex; align-items:center; gap:6px; }
+  .legend .swatch{ width:14px; height:3px; border-radius:2px; display:inline-block; }
+
+  /* ---------- LIST ---------- */
+  #lista{ display:flex; flex-direction:column; }
+  .dia{
+    display:flex;
+    justify-content: space-between;
+    align-items:center;
+    padding: 11px 20px;
+    border-bottom: 1px solid var(--line);
+    font-size: 13px;
+  }
+  .dia .fecha{ color: var(--text-muted); font-family: var(--font-mono); font-size: 11.5px; }
+  .dia .temps{ font-family: var(--font-mono); display:flex; gap:12px; }
+  .dia .tmax{ color: var(--hot); }
+  .dia .tmin{ color: var(--cold); }
+  .dia .tmed{ color: var(--gold); font-weight:600; }
+
+  #estado{
+    padding: 40px 20px;
+    text-align:center;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+
+  footer{
+    padding: 24px 20px 10px;
+    text-align:center;
+    font-size: 11.5px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow"><span class="dot"></span>Serie histórica · datos vía GitHub</div>
+  <h1 id="titulo">Cambio Climático</h1>
+  <div class="subtitle" id="subtitulo">Cargando estación…</div>
+</header>
+
+<div id="stripes-wrap"><svg id="stripes"></svg></div>
+<div class="stripes-caption"><span id="stripes-desde">–</span><span id="stripes-hasta">–</span></div>
+
+<div id="estado">Cargando datos climáticos…</div>
+
+<div id="contenido" style="display:none">
+
+  <div class="headline">
+    <div class="delta" id="delta-valor">–</div>
+    <div class="delta-label" id="delta-label">Comparando con el mismo mes del año anterior</div>
+  </div>
+
+  <div class="mini-stats">
+    <div class="mini-stat">
+      <div class="value" id="mes-actual-valor">–</div>
+      <div class="label" id="mes-actual-label">Media este mes</div>
+    </div>
+    <div class="mini-stat">
+      <div class="value" id="mes-anterior-valor">–</div>
+      <div class="label" id="mes-anterior-label">Media mismo mes, año anterior</div>
+    </div>
+  </div>
+
+  <div class="section-label">Comparativa diaria del mes</div>
+  <div class="section-sub" id="chart-sub">Temperatura media por día</div>
+  <div class="legend">
+    <span><i class="swatch" style="background:var(--gold)"></i>Este año</span>
+    <span><i class="swatch" style="background:var(--text-muted)"></i>Año anterior</span>
+  </div>
+  <div id="month-chart-wrap"><svg id="month-chart" viewBox="0 0 700 220"></svg></div>
+
+  <div class="section-label">Tendencia anual</div>
+  <div class="section-sub">Temperatura media por año desde el inicio de la serie</div>
+  <div id="trend-chart-wrap"><svg id="trend-chart" viewBox="0 0 700 160"></svg></div>
+
+  <div class="section-label">Días y noches extremas</div>
+  <div class="section-sub">Recuento anual · días con máxima ≥ 35°C y noches con mínima ≥ 20°C</div>
+  <div class="legend">
+    <span><i class="swatch" style="background:var(--hot)"></i>Días ≥ 35°C</span>
+    <span><i class="swatch" style="background:var(--gold)"></i>Noches ≥ 20°C</span>
+    <span><i class="swatch" style="background:var(--text); opacity:.6; border-top:1px dashed var(--text)"></i>Tendencia</span>
+  </div>
+  <div id="hot-chart-wrap"><svg id="hot-chart" viewBox="0 0 700 140"></svg></div>
+  <div id="trop-chart-wrap"><svg id="trop-chart" viewBox="0 0 700 140"></svg></div>
+
+  <div class="section-label">Últimos registros</div>
+  <div id="lista"></div>
+
+</div>
+
+<footer>
+  Datos generados diariamente con Python · Fuente: GitHub<br>
+  Media, mínima y máxima en °C
+</footer>
+
+<script>
+  // ============ CONFIGURA AQUÍ TU URL ============
+  const JSON_URL = "https://raw.githubusercontent.com/Zakkaryas/CuatroVientos/main/datos_estacion_3195.json";
+  // =================================================
+
+  const MESES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+
+  function num(v){
+    if(v === null || v === undefined || v === "") return NaN;
+    const n = parseFloat(String(v).replace(",", "."));
+    return isNaN(n) ? NaN : n;
+  }
+
+  function lerpColor(a, b, t){
+    const ah = a.match(/\w\w/g).map(x => parseInt(x,16));
+    const bh = b.match(/\w\w/g).map(x => parseInt(x,16));
+    const rgb = ah.map((c,i) => Math.round(c + (bh[i]-c)*t));
+    return `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+  }
+
+  function drawStripes(yearly){
+    const svg = document.getElementById('stripes');
+    const w = svg.clientWidth || 400, h = svg.clientHeight || 54;
+    svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+    const years = Object.keys(yearly).sort();
+    const vals = years.map(y => yearly[y]);
+    const min = Math.min(...vals), max = Math.max(...vals);
+    const bw = w / years.length;
+    years.forEach((y, i) => {
+      const t = (max === min) ? 0.5 : (yearly[y] - min) / (max - min);
+      const color = lerpColor('#4A90D9', '#E2543D', t);
+      const rect = document.createElementNS("http://www.w3.org/2000/svg","rect");
+      rect.setAttribute("x", (i*bw).toFixed(1));
+      rect.setAttribute("y", 0);
+      rect.setAttribute("width", Math.ceil(bw+0.5));
+      rect.setAttribute("height", h);
+      rect.setAttribute("fill", color);
+      svg.appendChild(rect);
+    });
+    document.getElementById('stripes-desde').textContent = years[0];
+    document.getElementById('stripes-hasta').textContent = years[years.length-1] + " (más reciente)";
+  }
+
+  function drawLineChart(svgId, seriesA, seriesB, colorA, colorB, unit){
+    const svg = document.getElementById(svgId);
+    const w = 700, h = svg.viewBox.baseVal.height || 220;
+    const padL = 34, padR = 10, padT = 14, padB = 20;
+
+    const allVals = [...seriesA, ...seriesB].filter(v => v !== null && !isNaN(v));
+    if(allVals.length === 0) return;
+    const min = Math.min(...allVals), max = Math.max(...allVals);
+    const range = (max - min) || 1;
+
+    const n = Math.max(seriesA.length, seriesB.length);
+    const stepX = (w - padL - padR) / Math.max(n-1, 1);
+
+    function toXY(series, i){
+      const v = series[i];
+      if(v === null || v === undefined || isNaN(v)) return null;
+      const x = padL + i*stepX;
+      const y = padT + (h - padT - padB) * (1 - (v - min)/range);
+      return [x,y];
+    }
+
+    function pathFor(series){
+      let d = "";
+      let started = false;
+      series.forEach((_, i) => {
+        const pt = toXY(series, i);
+        if(!pt){ started = false; return; }
+        d += (started ? " L " : " M ") + pt[0].toFixed(1) + " " + pt[1].toFixed(1);
+        started = true;
+      });
+      return d;
+    }
+
+    // gridlines (min/mid/max)
+    [min, (min+max)/2, max].forEach(v => {
+      const y = padT + (h - padT - padB) * (1 - (v-min)/range);
+      const line = document.createElementNS("http://www.w3.org/2000/svg","line");
+      line.setAttribute("x1", padL); line.setAttribute("x2", w-padR);
+      line.setAttribute("y1", y.toFixed(1)); line.setAttribute("y2", y.toFixed(1));
+      line.setAttribute("stroke", "#1E3049"); line.setAttribute("stroke-width","1");
+      svg.appendChild(line);
+      const label = document.createElementNS("http://www.w3.org/2000/svg","text");
+      label.setAttribute("x", 4); label.setAttribute("y", (y+3).toFixed(1));
+      label.setAttribute("fill", "#7C93AC"); label.setAttribute("font-size","9");
+      label.setAttribute("font-family","JetBrains Mono, monospace");
+      label.textContent = v.toFixed(0) + unit;
+      svg.appendChild(label);
+    });
+
+    if(seriesB.some(v => v !== null && !isNaN(v))){
+      const pathB = document.createElementNS("http://www.w3.org/2000/svg","path");
+      pathB.setAttribute("d", pathFor(seriesB));
+      pathB.setAttribute("fill","none"); pathB.setAttribute("stroke", colorB);
+      pathB.setAttribute("stroke-width","1.6"); pathB.setAttribute("stroke-dasharray","4 3");
+      pathB.setAttribute("opacity","0.8");
+      svg.appendChild(pathB);
+    }
+
+    const pathA = document.createElementNS("http://www.w3.org/2000/svg","path");
+    pathA.setAttribute("d", pathFor(seriesA));
+    pathA.setAttribute("fill","none"); pathA.setAttribute("stroke", colorA);
+    pathA.setAttribute("stroke-width","2.2");
+    svg.appendChild(pathA);
+  }
+
+  function drawTrendChart(yearly){
+    const svg = document.getElementById('trend-chart');
+    const w = 700, h = 160;
+    const padL = 34, padR = 10, padT = 14, padB = 22;
+    const years = Object.keys(yearly).sort();
+    const vals = years.map(y => yearly[y]);
+    const min = Math.min(...vals), max = Math.max(...vals);
+    const range = (max-min) || 1;
+    const stepX = (w - padL - padR) / Math.max(years.length-1, 1);
+
+    [min, max].forEach(v => {
+      const y = padT + (h - padT - padB) * (1 - (v-min)/range);
+      const label = document.createElementNS("http://www.w3.org/2000/svg","text");
+      label.setAttribute("x", 4); label.setAttribute("y", (y+3).toFixed(1));
+      label.setAttribute("fill", "#7C93AC"); label.setAttribute("font-size","9");
+      label.setAttribute("font-family","JetBrains Mono, monospace");
+      label.textContent = v.toFixed(1) + "°";
+      svg.appendChild(label);
+    });
+
+    let d = "";
+    years.forEach((y, i) => {
+      const x = padL + i*stepX;
+      const yy = padT + (h - padT - padB) * (1 - (yearly[y]-min)/range);
+      d += (i===0 ? "M " : "L ") + x.toFixed(1) + " " + yy.toFixed(1);
+    });
+    const path = document.createElementNS("http://www.w3.org/2000/svg","path");
+    path.setAttribute("d", d);
+    path.setAttribute("fill","none"); path.setAttribute("stroke","#E8B84B");
+    path.setAttribute("stroke-width","2");
+    svg.appendChild(path);
+
+    // first/last year labels
+    [0, years.length-1].forEach(i => {
+      const x = padL + i*stepX;
+      const label = document.createElementNS("http://www.w3.org/2000/svg","text");
+      label.setAttribute("x", x); label.setAttribute("y", h-6);
+      label.setAttribute("fill", "#7C93AC"); label.setAttribute("font-size","9");
+      label.setAttribute("font-family","JetBrains Mono, monospace");
+      label.setAttribute("text-anchor", i===0 ? "start" : "end");
+      label.textContent = years[i];
+      svg.appendChild(label);
+    });
+  }
+
+  function drawBarChart(svgId, yearly, color, anioActual, mostrarValores){
+    const svg = document.getElementById(svgId);
+    const w = 700, h = 140;
+    const padL = 24, padR = 10, padT = mostrarValores ? 20 : 14, padB = 22;
+    const years = Object.keys(yearly).sort();
+    const vals = years.map(y => yearly[y]);
+    const max = Math.max(...vals, 1);
+    const stepX = (w - padL - padR) / years.length;
+    const barW = Math.max(stepX * 0.62, 1);
+
+    // etiqueta del máximo
+    const label = document.createElementNS("http://www.w3.org/2000/svg","text");
+    label.setAttribute("x", 4); label.setAttribute("y", (padT+9).toFixed(1));
+    label.setAttribute("fill", "#7C93AC"); label.setAttribute("font-size","9");
+    label.setAttribute("font-family","JetBrains Mono, monospace");
+    label.textContent = max;
+    svg.appendChild(label);
+
+    years.forEach((y, i) => {
+      const v = yearly[y];
+      const barH = (h - padT - padB) * (v / max);
+      const x = padL + i*stepX + (stepX - barW)/2;
+      const yPos = h - padB - barH;
+      const rect = document.createElementNS("http://www.w3.org/2000/svg","rect");
+      rect.setAttribute("x", x.toFixed(1));
+      rect.setAttribute("y", yPos.toFixed(1));
+      rect.setAttribute("width", barW.toFixed(1));
+      rect.setAttribute("height", Math.max(barH,0).toFixed(1));
+      rect.setAttribute("fill", color);
+      rect.setAttribute("rx", "1.5");
+      if(Number(y) === anioActual) rect.setAttribute("opacity", "0.45");
+      svg.appendChild(rect);
+
+      if(mostrarValores && v > 0){
+        const val = document.createElementNS("http://www.w3.org/2000/svg","text");
+        val.setAttribute("x", (x + barW/2).toFixed(1));
+        val.setAttribute("y", (yPos - 3).toFixed(1));
+        val.setAttribute("fill", "#7C93AC");
+        val.setAttribute("font-size","7.5");
+        val.setAttribute("font-family","JetBrains Mono, monospace");
+        val.setAttribute("text-anchor","middle");
+        val.textContent = v;
+        svg.appendChild(val);
+      }
+    });
+
+    // línea de tendencia (regresión lineal, excluyendo el año en curso si está incompleto)
+    const idxsAjuste = years.map((y,i) => i).filter(i => Number(years[i]) !== anioActual);
+    if(idxsAjuste.length >= 2){
+      const xs = idxsAjuste;
+      const ys = idxsAjuste.map(i => vals[i]);
+      const n = xs.length;
+      const sumX = xs.reduce((a,b)=>a+b,0);
+      const sumY = ys.reduce((a,b)=>a+b,0);
+      const sumXY = xs.reduce((a,x,i)=>a+x*ys[i],0);
+      const sumXX = xs.reduce((a,x)=>a+x*x,0);
+      const denom = (n*sumXX - sumX*sumX) || 1;
+      const slope = (n*sumXY - sumX*sumY) / denom;
+      const intercept = (sumY - slope*sumX) / n;
+
+      let d = "";
+      years.forEach((y, i) => {
+        const pred = Math.max(0, Math.min(max, slope*i + intercept));
+        const x = padL + i*stepX + stepX/2;
+        const yy = h - padB - (h - padT - padB) * (pred/max);
+        d += (i===0 ? "M " : "L ") + x.toFixed(1) + " " + yy.toFixed(1);
+      });
+      const trend = document.createElementNS("http://www.w3.org/2000/svg","path");
+      trend.setAttribute("d", d);
+      trend.setAttribute("fill","none");
+      trend.setAttribute("stroke","#EAF0F6");
+      trend.setAttribute("stroke-width","1.4");
+      trend.setAttribute("stroke-dasharray","3 3");
+      trend.setAttribute("opacity","0.8");
+      svg.appendChild(trend);
+    }
+
+    const base = document.createElementNS("http://www.w3.org/2000/svg","line");
+    base.setAttribute("x1", padL); base.setAttribute("x2", w-padR);
+    base.setAttribute("y1", h-padB); base.setAttribute("y2", h-padB);
+    base.setAttribute("stroke", "#1E3049"); base.setAttribute("stroke-width","1");
+    svg.appendChild(base);
+
+    [0, years.length-1].forEach(i => {
+      const x = padL + i*stepX + stepX/2;
+      const lbl = document.createElementNS("http://www.w3.org/2000/svg","text");
+      lbl.setAttribute("x", x); lbl.setAttribute("y", h-6);
+      lbl.setAttribute("fill", "#7C93AC"); lbl.setAttribute("font-size","9");
+      lbl.setAttribute("font-family","JetBrains Mono, monospace");
+      lbl.setAttribute("text-anchor", i===0 ? "start" : "end");
+      lbl.textContent = years[i];
+      svg.appendChild(lbl);
+    });
+  }
+
+  function renderLista(registros){
+    const cont = document.getElementById('lista');
+    cont.innerHTML = "";
+    const ultimos = [...registros].sort((a,b) => new Date(b.fecha) - new Date(a.fecha)).slice(0, 10);
+    ultimos.forEach(r => {
+      const div = document.createElement('div');
+      div.className = "dia";
+      div.innerHTML = `
+        <span class="fecha">${r.fecha}</span>
+        <span class="temps">
+          <span class="tmin">${isNaN(num(r.tmin)) ? "–" : num(r.tmin).toFixed(1)+"°"}</span>
+          <span class="tmed">${isNaN(num(r.tmed)) ? "–" : num(r.tmed).toFixed(1)+"°"}</span>
+          <span class="tmax">${isNaN(num(r.tmax)) ? "–" : num(r.tmax).toFixed(1)+"°"}</span>
+        </span>
+      `;
+      cont.appendChild(div);
+    });
+  }
+
+  async function cargarDatos(){
+    const estado = document.getElementById('estado');
+    try{
+      if(!JSON_URL || JSON_URL.includes("REEMPLAZA_CON_TU_URL")){
+        throw new Error("Falta configurar JSON_URL en el script.");
+      }
+      const res = await fetch(JSON_URL, { cache: "no-store" });
+      if(!res.ok) throw new Error("El servidor respondió " + res.status + " — revisa la URL y la rama.");
+
+      let raw;
+      try{ raw = await res.json(); }
+      catch(e){ throw new Error("La respuesta no es un JSON válido. Usa la URL raw.githubusercontent.com."); }
+
+      const registros = Array.isArray(raw) ? raw : (raw.registros || raw.datos || []);
+      if(!registros.length) throw new Error("El JSON no contiene registros.");
+
+      // limpiar y parsear
+      const limpios = registros
+        .map(r => ({...r, _fecha: new Date(r.fecha), _tmed: num(r.tmed)}))
+        .filter(r => !isNaN(r._fecha.getTime()) && !isNaN(r._tmed));
+
+      if(!limpios.length) throw new Error("No se pudieron interpretar las fechas o temperaturas del JSON.");
+
+      const estacion = limpios[0].nombre || "Estación";
+      const provincia = limpios[0].provincia || "";
+
+      limpios.sort((a,b) => a._fecha - b._fecha);
+      const ultimo = limpios[limpios.length-1];
+      const anioActual = ultimo._fecha.getFullYear();
+      const mesActual = ultimo._fecha.getMonth();
+
+      // medias anuales
+      const porAnio = {};
+      limpios.forEach(r => {
+        const y = r._fecha.getFullYear();
+        if(!porAnio[y]) porAnio[y] = [];
+        porAnio[y].push(r._tmed);
+      });
+      const mediaAnual = {};
+      Object.keys(porAnio).forEach(y => {
+        const arr = porAnio[y];
+        mediaAnual[y] = arr.reduce((a,b)=>a+b,0)/arr.length;
+      });
+
+      // días con máxima ≥35°C y noches con mínima ≥20°C, por año
+      const diasCalorAnual = {};
+      const nochesTropicalesAnual = {};
+      Object.keys(porAnio).forEach(y => { diasCalorAnual[y] = 0; nochesTropicalesAnual[y] = 0; });
+      limpios.forEach(r => {
+        const y = r._fecha.getFullYear();
+        const tmax = num(r.tmax);
+        const tmin = num(r.tmin);
+        if(!isNaN(tmax) && tmax >= 35) diasCalorAnual[y]++;
+        if(!isNaN(tmin) && tmin >= 20) nochesTropicalesAnual[y]++;
+      });
+
+      // mes actual vs mismo mes año anterior
+      const esteMes = limpios.filter(r => r._fecha.getFullYear() === anioActual && r._fecha.getMonth() === mesActual);
+      const mesAnterior = limpios.filter(r => r._fecha.getFullYear() === anioActual-1 && r._fecha.getMonth() === mesActual);
+
+      const mediaEsteMes = esteMes.reduce((a,r)=>a+r._tmed,0) / (esteMes.length || 1);
+      const mediaMesAnterior = mesAnterior.reduce((a,r)=>a+r._tmed,0) / (mesAnterior.length || 1);
+      const delta = mediaEsteMes - mediaMesAnterior;
+
+      // render textos
+      document.getElementById('titulo').textContent = "Cambio Climático · " + estacion;
+      document.getElementById('subtitulo').textContent =
+        `${provincia ? provincia + " · " : ""}Serie desde ${limpios[0]._fecha.getFullYear()} · Última lectura: ${ultimo.fecha}`;
+
+      const deltaEl = document.getElementById('delta-valor');
+      deltaEl.textContent = (delta >= 0 ? "+" : "") + delta.toFixed(1) + "°C";
+      deltaEl.className = "delta " + (delta >= 0 ? "hot" : "cold");
+      document.getElementById('delta-label').innerHTML =
+        `<b>${MESES[mesActual]} ${anioActual}</b> está ${delta >= 0 ? "más cálido" : "más frío"} que ${MESES[mesActual]} ${anioActual-1} en la estación de ${estacion}.`;
+
+      document.getElementById('mes-actual-valor').textContent = mediaEsteMes.toFixed(1) + "°C";
+      document.getElementById('mes-actual-label').textContent = `Media ${MESES[mesActual]} ${anioActual}`;
+      document.getElementById('mes-anterior-valor').textContent = mediaMesAnterior.toFixed(1) + "°C";
+      document.getElementById('mes-anterior-label').textContent = `Media ${MESES[mesActual]} ${anioActual-1}`;
+
+      // gráfico mensual día a día
+      const diasEnMes = Math.max(
+        esteMes.length ? Math.max(...esteMes.map(r => r._fecha.getDate())) : 0,
+        mesAnterior.length ? Math.max(...mesAnterior.map(r => r._fecha.getDate())) : 0,
+        28
+      );
+      const serieA = new Array(diasEnMes).fill(null);
+      const serieB = new Array(diasEnMes).fill(null);
+      esteMes.forEach(r => serieA[r._fecha.getDate()-1] = r._tmed);
+      mesAnterior.forEach(r => serieB[r._fecha.getDate()-1] = r._tmed);
+
+      drawLineChart('month-chart', serieA, serieB, '#E8B84B', '#7C93AC', '°');
+      drawTrendChart(mediaAnual);
+      drawBarChart('hot-chart', diasCalorAnual, '#E2543D', anioActual, true);
+      drawBarChart('trop-chart', nochesTropicalesAnual, '#E8B84B', anioActual, true);
+      drawStripes(mediaAnual);
+      renderLista(limpios);
+
+      estado.style.display = "none";
+      document.getElementById('contenido').style.display = "block";
+
+    }catch(err){
+      estado.style.display = "block";
+      estado.style.color = "#E2543D";
+      estado.textContent = "⚠ " + err.message;
+      console.error("Error cargando datos climáticos:", err);
+    }
+  }
+
+  cargarDatos();
+</script>
+</body>
+</html>
