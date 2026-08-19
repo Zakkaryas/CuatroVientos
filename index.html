@@ -105,7 +105,7 @@
 
   .mini-stats{
     display:grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(3, 1fr);
     gap: 1px;
     background: var(--line);
     border-bottom: 1px solid var(--line);
@@ -120,6 +120,7 @@
     font-weight: 600;
     font-size: 19px;
   }
+  .mini-stat .value.hot{ color: var(--hot); }
   .mini-stat .label{
     margin-top: 3px;
     font-size: 10.5px;
@@ -196,6 +197,11 @@
   }
   table.heatmap td{ color: var(--text); font-weight: 500; }
   table.heatmap td.sin-dato{ color: var(--text-muted); font-weight: 400; }
+  table.heatmap tr.fila-anual td{
+    font-weight: 700;
+    border-top: 2px solid var(--line);
+  }
+  table.heatmap tr.fila-anual td.mes{ color: var(--text); }
 
   /* ---------- LIST ---------- */
   #lista{ display:flex; flex-direction:column; }
@@ -259,6 +265,10 @@
       <div class="value" id="mes-anterior-valor">–</div>
       <div class="label" id="mes-anterior-label">Media mismo mes, año anterior</div>
     </div>
+    <div class="mini-stat">
+      <div class="value hot" id="mes-record-valor">–</div>
+      <div class="label" id="mes-record-label">Récord histórico</div>
+    </div>
   </div>
 
   <div class="section-label">Comparativa diaria del mes</div>
@@ -284,15 +294,15 @@
   <div id="trop-chart-wrap"><svg id="trop-chart" viewBox="0 0 700 140"></svg></div>
 
   <div class="section-label">Temperatura máxima media</div>
-  <div class="section-sub">Promedio mensual de la máxima diaria, °C</div>
+  <div class="section-sub">Promedio mensual de la máxima diaria, °C · fila final: media anual</div>
   <div class="heatmap-wrap"><table class="heatmap" id="tmax-table"></table></div>
 
   <div class="section-label">Temperatura mínima media</div>
-  <div class="section-sub">Promedio mensual de la mínima diaria, °C</div>
+  <div class="section-sub">Promedio mensual de la mínima diaria, °C · fila final: media anual</div>
   <div class="heatmap-wrap"><table class="heatmap" id="tmin-table"></table></div>
 
   <div class="section-label">Precipitación media diaria</div>
-  <div class="section-sub">Promedio de precipitación diaria por mes, mm</div>
+  <div class="section-sub">Promedio de precipitación diaria por mes, mm · fila final: total anual</div>
   <div class="heatmap-wrap"><table class="heatmap" id="prec-table"></table></div>
 
   <div class="section-label">Últimos registros</div>
@@ -568,7 +578,7 @@
     return grid;
   }
 
-  function renderHeatmap(tableId, grid, years, valueFn, colorLow, colorHigh, decimales){
+  function renderHeatmap(tableId, grid, years, valueFn, colorLow, colorHigh, decimales, anualFn, anualDecimales, anualLabel){
     const table = document.getElementById(tableId);
     table.innerHTML = "";
 
@@ -618,6 +628,35 @@
       });
       tbody.appendChild(tr);
     });
+
+    if(anualFn){
+      const trAnual = document.createElement('tr');
+      trAnual.className = 'fila-anual';
+      const tdLabel = document.createElement('td');
+      tdLabel.className = 'mes';
+      tdLabel.textContent = anualLabel;
+      trAnual.appendChild(tdLabel);
+
+      const anualValores = years.map(y => anualFn(y)).filter(v => v !== null);
+      const aMin = Math.min(...anualValores), aMax = Math.max(...anualValores);
+      const aRango = (aMax - aMin) || 1;
+
+      years.forEach(y => {
+        const v = anualFn(y);
+        const td = document.createElement('td');
+        if(v === null){
+          td.textContent = '–';
+          td.className = 'sin-dato';
+        }else{
+          const t = Math.max(0, Math.min(1, (v - aMin) / aRango));
+          td.textContent = v.toFixed(anualDecimales);
+          td.style.background = lerpColor(colorLow, colorHigh, t);
+        }
+        trAnual.appendChild(td);
+      });
+      tbody.appendChild(trAnual);
+    }
+
     table.appendChild(tbody);
   }
 
@@ -704,6 +743,22 @@
       const mediaMesAnterior = mesAnterior.reduce((a,r)=>a+r._tmed,0) / (mesAnterior.length || 1);
       const delta = mediaEsteMes - mediaMesAnterior;
 
+      // récord histórico de ese mismo mes (mejor año registrado, excluyendo el año en curso si está incompleto)
+      const porAnioMes = {};
+      limpios.forEach(r => {
+        if(r._fecha.getMonth() !== mesActual) return;
+        const y = r._fecha.getFullYear();
+        if(y === anioActual) return;
+        if(!porAnioMes[y]) porAnioMes[y] = [];
+        porAnioMes[y].push(r._tmed);
+      });
+      let recordValor = -Infinity, recordAnio = null;
+      Object.keys(porAnioMes).forEach(y => {
+        const arr = porAnioMes[y];
+        const media = arr.reduce((a,b)=>a+b,0)/arr.length;
+        if(media > recordValor){ recordValor = media; recordAnio = y; }
+      });
+
       // render textos
       document.getElementById('titulo').textContent = "Cambio Climático · " + estacion;
       document.getElementById('subtitulo').textContent =
@@ -719,6 +774,11 @@
       document.getElementById('mes-actual-label').textContent = `Media ${MESES[mesActual]} ${anioActual}`;
       document.getElementById('mes-anterior-valor').textContent = mediaMesAnterior.toFixed(1) + "°C";
       document.getElementById('mes-anterior-label').textContent = `Media ${MESES[mesActual]} ${anioActual-1}`;
+
+      document.getElementById('mes-record-valor').textContent = recordAnio !== null ? recordValor.toFixed(1) + "°C" : "–";
+      document.getElementById('mes-record-label').textContent = recordAnio !== null
+        ? `Récord ${MESES[mesActual]}, ${recordAnio}`
+        : `Récord histórico`;
 
       // gráfico mensual día a día
       const diasEnMes = Math.max(
@@ -741,9 +801,28 @@
       const vTmax = (g,m,y) => { const c = g[m+'-'+y]; return (c && c.tmaxN) ? c.tmaxSum/c.tmaxN : null; };
       const vTmin = (g,m,y) => { const c = g[m+'-'+y]; return (c && c.tminN) ? c.tminSum/c.tminN : null; };
       const vPrec = (g,m,y) => { const c = g[m+'-'+y]; return (c && c.precN) ? c.precSum/c.precN : null; };
-      renderHeatmap('tmax-table', gridMensual, aniosOrdenados, vTmax, '#E8B84B', '#E2543D', 1);
-      renderHeatmap('tmin-table', gridMensual, aniosOrdenados, vTmin, '#4A90D9', '#E2543D', 1);
-      renderHeatmap('prec-table', gridMensual, aniosOrdenados, vPrec, '#142238', '#4A90D9', 2);
+
+      function promedioAnual(campo, y){
+        const arr = limpios
+          .filter(r => r._fecha.getFullYear() === y)
+          .map(r => num(r[campo]))
+          .filter(v => !isNaN(v));
+        return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null;
+      }
+      function totalAnual(campo, y){
+        const arr = limpios
+          .filter(r => r._fecha.getFullYear() === y)
+          .map(r => num(r[campo]))
+          .filter(v => !isNaN(v));
+        return arr.length ? arr.reduce((a,b)=>a+b,0) : null;
+      }
+
+      renderHeatmap('tmax-table', gridMensual, aniosOrdenados, vTmax, '#E8B84B', '#E2543D', 1,
+        y => promedioAnual('tmax', y), 1, 'Año');
+      renderHeatmap('tmin-table', gridMensual, aniosOrdenados, vTmin, '#4A90D9', '#E2543D', 1,
+        y => promedioAnual('tmin', y), 1, 'Año');
+      renderHeatmap('prec-table', gridMensual, aniosOrdenados, vPrec, '#142238', '#4A90D9', 2,
+        y => totalAnual('prec', y), 0, 'Total');
       drawStripes(mediaAnual);
       renderLista(limpios);
 
