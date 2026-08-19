@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Días de calor extremo · Cuatro Vientos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg: #0b0d12;
+    --panel: #12151c;
+    --panel-border: #1f2430;
+    --text: #e8e9ed;
+    --muted: #838a9a;
+    --hot: #ff6a3d;      /* dias >=35 */
+    --tropical: #e8b23c; /* noches >=20 */
+    --grid: #1c2029;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Space Grotesk', system-ui, sans-serif;
+    padding:32px 20px 60px;
+  }
+  .wrap{max-width:1040px;margin:0 auto;}
+  header{margin-bottom:36px;}
+  .eyebrow{
+    font-family:'JetBrains Mono', monospace;
+    font-size:12px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--hot);
+    margin:0 0 10px;
+  }
+  h1{
+    font-size:clamp(26px,4vw,38px);
+    font-weight:700;
+    margin:0 0 8px;
+    letter-spacing:-0.01em;
+  }
+  .sub{color:var(--muted);font-size:15px;max-width:620px;line-height:1.5;}
+
+  .stats{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+    gap:1px;
+    background:var(--panel-border);
+    border:1px solid var(--panel-border);
+    border-radius:14px;
+    overflow:hidden;
+    margin:28px 0 40px;
+  }
+  .stat{background:var(--panel);padding:18px 20px;}
+  .stat .label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-family:'JetBrains Mono',monospace;}
+  .stat .value{font-size:26px;font-weight:700;margin-top:6px;font-variant-numeric:tabular-nums;}
+  .stat .value.hot{color:var(--hot);}
+  .stat .value.tropical{color:var(--tropical);}
+
+  .card{
+    background:var(--panel);
+    border:1px solid var(--panel-border);
+    border-radius:16px;
+    padding:24px 22px 12px;
+    margin-bottom:24px;
+  }
+  .card-head{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:6px;}
+  .card-title{font-size:16px;font-weight:600;display:flex;align-items:center;gap:8px;}
+  .dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
+  .dot.hot{background:var(--hot);}
+  .dot.tropical{background:var(--tropical);}
+  .card-note{font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace;}
+  .chart-box{height:280px;position:relative;}
+
+  footer{margin-top:20px;color:var(--muted);font-size:12px;font-family:'JetBrains Mono',monospace;}
+  .loading{color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:13px;padding:40px 0;text-align:center;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Estación 3195 · Madrid, Cuatro Vientos</p>
+    <h1>Días y noches extremas por año</h1>
+    <p class="sub">Recuento anual de jornadas con temperatura máxima ≥ 35°C y noches con temperatura mínima ≥ 20°C (noches tropicales), a partir de la serie histórica de AEMET.</p>
+  </header>
+
+  <div id="loading" class="loading">Cargando serie histórica…</div>
+
+  <div id="content" style="display:none;">
+    <div class="stats" id="stats"></div>
+
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title"><span class="dot hot"></span>Días con máxima ≥ 35°C</div>
+        <div class="card-note" id="hotNote"></div>
+      </div>
+      <div class="chart-box"><canvas id="hotChart"></canvas></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title"><span class="dot tropical"></span>Noches con mínima ≥ 20°C</div>
+        <div class="card-note" id="tropNote"></div>
+      </div>
+      <div class="chart-box"><canvas id="tropChart"></canvas></div>
+    </div>
+
+    <footer>Fuente: datos_estacion_3195.json · GitHub Zakkaryas/CuatroVientos · el último año puede estar incompleto</footer>
+  </div>
+</div>
+
+<script>
+const DATA_URL = "https://raw.githubusercontent.com/Zakkaryas/CuatroVientos/refs/heads/main/datos_estacion_3195.json";
+
+function num(v){
+  return (v === null || v === undefined || v === "") ? null : Number(v);
+}
+
+async function main(){
+  const res = await fetch(DATA_URL);
+  const rows = await res.json();
+
+  const currentYear = new Date().getFullYear();
+  const byYear = {};
+
+  rows.forEach(r => {
+    const year = Number(r.fecha.slice(0,4));
+    if(!byYear[year]) byYear[year] = {hot:0, trop:0, days:0};
+    const tmax = num(r.tmax);
+    const tmin = num(r.tmin);
+    if(tmax !== null && tmax >= 35) byYear[year].hot++;
+    if(tmin !== null && tmin >= 20) byYear[year].trop++;
+    byYear[year].days++;
+  });
+
+  const years = Object.keys(byYear).map(Number).sort((a,b)=>a-b);
+  const hotCounts = years.map(y => byYear[y].hot);
+  const tropCounts = years.map(y => byYear[y].trop);
+
+  // stats: complete years only (exclude current, in-progress year) for fair comparisons
+  const completeYears = years.filter(y => y !== currentYear);
+  const lastCompleteYear = completeYears[completeYears.length - 1];
+  const firstYear = completeYears[0];
+  const idxLast = years.indexOf(lastCompleteYear);
+  const idxFirst = years.indexOf(firstYear);
+
+  const avgFirst5 = avg(hotCounts.slice(idxFirst, idxFirst+5));
+  const avgLast5 = avg(hotCounts.slice(Math.max(0, idxLast-4), idxLast+1));
+  const avgFirst5T = avg(tropCounts.slice(idxFirst, idxFirst+5));
+  const avgLast5T = avg(tropCounts.slice(Math.max(0, idxLast-4), idxLast+1));
+
+  document.getElementById('stats').innerHTML = `
+    <div class="stat"><div class="label">Días ≥35°C, ${firstYear}-${firstYear+4}</div><div class="value hot">${avgFirst5.toFixed(1)}/año</div></div>
+    <div class="stat"><div class="label">Días ≥35°C, ${lastCompleteYear-4}-${lastCompleteYear}</div><div class="value hot">${avgLast5.toFixed(1)}/año</div></div>
+    <div class="stat"><div class="label">Noches ≥20°C, ${firstYear}-${firstYear+4}</div><div class="value tropical">${avgFirst5T.toFixed(1)}/año</div></div>
+    <div class="stat"><div class="label">Noches ≥20°C, ${lastCompleteYear-4}-${lastCompleteYear}</div><div class="value tropical">${avgLast5T.toFixed(1)}/año</div></div>
+  `;
+
+  document.getElementById('hotNote').textContent = `récord: ${Math.max(...hotCounts)} días (${years[hotCounts.indexOf(Math.max(...hotCounts))]})`;
+  document.getElementById('tropNote').textContent = `récord: ${Math.max(...tropCounts)} noches (${years[tropCounts.indexOf(Math.max(...tropCounts))]})`;
+
+  const commonOpts = (accent) => ({
+    type: 'bar',
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          backgroundColor:'#1a1e27',
+          borderColor:'#2a2f3b',
+          borderWidth:1,
+          titleFont:{family:"'JetBrains Mono', monospace", size:12},
+          bodyFont:{family:"'Space Grotesk', sans-serif", size:13},
+          padding:10,
+          displayColors:false
+        }
+      },
+      scales:{
+        x:{
+          grid:{display:false},
+          ticks:{color:'#838a9a', font:{family:"'JetBrains Mono', monospace", size:10}, maxRotation:0, autoSkip:true}
+        },
+        y:{
+          beginAtZero:true,
+          grid:{color:'#1c2029'},
+          ticks:{color:'#838a9a', font:{family:"'JetBrains Mono', monospace", size:11}, precision:0}
+        }
+      }
+    }
+  });
+
+  new Chart(document.getElementById('hotChart'), {
+    ...commonOpts('hot'),
+    data:{
+      labels: years,
+      datasets:[{
+        data: hotCounts,
+        backgroundColor: years.map(y => y===currentYear ? 'rgba(255,106,61,0.35)' : '#ff6a3d'),
+        borderRadius: 3,
+        maxBarThickness: 22
+      }]
+    }
+  });
+
+  new Chart(document.getElementById('tropChart'), {
+    ...commonOpts('trop'),
+    data:{
+      labels: years,
+      datasets:[{
+        data: tropCounts,
+        backgroundColor: years.map(y => y===currentYear ? 'rgba(232,178,60,0.35)' : '#e8b23c'),
+        borderRadius: 3,
+        maxBarThickness: 22
+      }]
+    }
+  });
+
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('content').style.display = 'block';
+}
+
+function avg(arr){
+  const clean = arr.filter(v => v !== undefined);
+  return clean.reduce((a,b)=>a+b,0) / clean.length;
+}
+
+main().catch(err => {
+  document.getElementById('loading').textContent = 'Error cargando datos: ' + err.message;
+});
+</script>
+</body>
+</html>
