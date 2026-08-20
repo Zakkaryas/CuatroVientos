@@ -154,11 +154,46 @@
     color: var(--text-muted);
   }
 
-  #month-chart-wrap, #trend-chart-wrap, #hot-chart-wrap, #trop-chart-wrap{
+  #month-chart-wrap, #trend-chart-wrap, #hot-chart-wrap, #trop-chart-wrap,
+  #ola-chart-wrap, #noches-racha-chart-wrap, #sequia-chart-wrap{
     padding: 0 12px;
   }
-  #month-chart, #trend-chart, #hot-chart, #trop-chart{ width:100%; display:block; }
-  #trop-chart-wrap{ margin-top: 6px; }
+  #month-chart, #trend-chart, #hot-chart, #trop-chart,
+  #ola-chart, #noches-racha-chart, #sequia-chart{ width:100%; display:block; }
+  #trop-chart-wrap, #noches-racha-chart-wrap, #sequia-chart-wrap{ margin-top: 6px; }
+
+  .record-cards{
+    display:grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin: 0 20px 22px;
+  }
+  .record-card{
+    background: var(--bg-panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 14px 10px;
+    text-align: center;
+  }
+  .record-card .value{
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 19px;
+    color: var(--hot);
+  }
+  .record-card .label{
+    margin-top: 4px;
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+  .record-card .sub{
+    margin-top: 4px;
+    font-size: 10px;
+    font-family: var(--font-mono);
+    color: var(--text-muted);
+  }
 
   .legend{
     display:flex;
@@ -342,6 +377,38 @@
   <div id="hot-chart-wrap"><svg id="hot-chart" viewBox="0 0 700 140"></svg></div>
   <div id="trop-chart-wrap"><svg id="trop-chart" viewBox="0 0 700 140"></svg></div>
 
+  <div class="section-label">Rachas y récords históricos</div>
+  <div class="section-sub">Los episodios más extremos de toda la serie</div>
+  <div class="record-cards">
+    <div class="record-card">
+      <div class="value" id="record-ola-valor">–</div>
+      <div class="label">Ola de calor más larga</div>
+      <div class="sub" id="record-ola-sub">–</div>
+    </div>
+    <div class="record-card">
+      <div class="value" id="record-noches-valor">–</div>
+      <div class="label">Racha de noches tropicales</div>
+      <div class="sub" id="record-noches-sub">–</div>
+    </div>
+    <div class="record-card">
+      <div class="value" id="record-sequia-valor">–</div>
+      <div class="label">Sequía más larga</div>
+      <div class="sub" id="record-sequia-sub">–</div>
+    </div>
+  </div>
+
+  <div class="section-label">Ola de calor más larga, por año</div>
+  <div class="section-sub">Días consecutivos con máxima ≥ 35°C</div>
+  <div id="ola-chart-wrap"><svg id="ola-chart" viewBox="0 0 700 140"></svg></div>
+
+  <div class="section-label">Racha de noches tropicales, por año</div>
+  <div class="section-sub">Noches consecutivas con mínima ≥ 20°C</div>
+  <div id="noches-racha-chart-wrap"><svg id="noches-racha-chart" viewBox="0 0 700 140"></svg></div>
+
+  <div class="section-label">Sequía más larga, por año</div>
+  <div class="section-sub">Días consecutivos sin lluvia registrable</div>
+  <div id="sequia-chart-wrap"><svg id="sequia-chart" viewBox="0 0 700 140"></svg></div>
+
   <div class="section-label">Temperatura máxima media</div>
   <div class="section-sub">Promedio mensual de la máxima diaria, °C · fila final: media anual</div>
   <div class="heatmap-wrap"><table class="heatmap" id="tmax-table"></table></div>
@@ -515,6 +582,52 @@
       label.textContent = years[i];
       svg.appendChild(label);
     });
+  }
+
+  function fmtFecha(d){
+    return `${d.getDate()} ${MESES[d.getMonth()].slice(0,3)} ${d.getFullYear()}`;
+  }
+
+  // racha más larga (consecutiva) que cumple condFn, para cada año natural (no cruza el 31-dic)
+  function rachasMaximasPorAnio(registrosOrdenados, condFn){
+    const max = {};
+    let racha = 0, inicioRacha = null;
+    function cerrar(){
+      if(racha > 0){
+        const y = inicioRacha.getFullYear();
+        if(!max[y] || racha > max[y].max) max[y] = { max: racha, inicio: inicioRacha };
+      }
+      racha = 0; inicioRacha = null;
+    }
+    let anioAnterior = null;
+    registrosOrdenados.forEach(r => {
+      const y = r._fecha.getFullYear();
+      if(anioAnterior !== null && y !== anioAnterior) cerrar();
+      if(condFn(r)){
+        if(racha === 0) inicioRacha = r._fecha;
+        racha++;
+      } else {
+        cerrar();
+      }
+      anioAnterior = y;
+    });
+    cerrar();
+    return max;
+  }
+
+  // racha más larga de toda la serie, sin restricción de año
+  function rachaGlobalMax(registrosOrdenados, condFn){
+    let racha = 0, inicioRacha = null, mejor = { max: 0, inicio: null, fin: null };
+    registrosOrdenados.forEach(r => {
+      if(condFn(r)){
+        if(racha === 0) inicioRacha = r._fecha;
+        racha++;
+        if(racha > mejor.max) mejor = { max: racha, inicio: inicioRacha, fin: r._fecha };
+      } else {
+        racha = 0;
+      }
+    });
+    return mejor;
   }
 
   function drawBarChart(svgId, yearly, color, anioActual, mostrarValores){
@@ -867,6 +980,45 @@
       drawTrendChart(mediaAnual);
       drawBarChart('hot-chart', diasCalorAnual, '#E2543D', anioActual, true);
       drawBarChart('trop-chart', nochesTropicalesAnual, '#E8B84B', anioActual, true);
+
+      // rachas y récords históricos
+      const ordenados = [...limpios].sort((a,b) => a._fecha - b._fecha);
+      const esTmax35 = r => { const v = num(r.tmax); return !isNaN(v) && v >= 35; };
+      const esTmin20 = r => { const v = num(r.tmin); return !isNaN(v) && v >= 20; };
+      const esSeco = r => { const v = num(r.prec); return !isNaN(v) && v === 0; };
+
+      const olaRecord = rachaGlobalMax(ordenados, esTmax35);
+      const nochesRecord = rachaGlobalMax(ordenados, esTmin20);
+      const sequiaRecord = rachaGlobalMax(ordenados, esSeco);
+
+      document.getElementById('record-ola-valor').textContent = olaRecord.max + ' días';
+      document.getElementById('record-ola-sub').textContent = olaRecord.inicio ? `${fmtFecha(olaRecord.inicio)} – ${fmtFecha(olaRecord.fin)}` : '–';
+
+      document.getElementById('record-noches-valor').textContent = nochesRecord.max + ' noches';
+      document.getElementById('record-noches-sub').textContent = nochesRecord.inicio ? `${fmtFecha(nochesRecord.inicio)} – ${fmtFecha(nochesRecord.fin)}` : '–';
+
+      document.getElementById('record-sequia-valor').textContent = sequiaRecord.max + ' días';
+      document.getElementById('record-sequia-sub').textContent = sequiaRecord.inicio ? `${fmtFecha(sequiaRecord.inicio)} – ${fmtFecha(sequiaRecord.fin)}` : '–';
+
+      const rachasOlaPorAnio = rachasMaximasPorAnio(ordenados, esTmax35);
+      const rachasNochesPorAnio = rachasMaximasPorAnio(ordenados, esTmin20);
+      const rachasSequiaPorAnio = rachasMaximasPorAnio(ordenados, esSeco);
+
+      const olaValores = {}; Object.keys(rachasOlaPorAnio).forEach(y => olaValores[y] = rachasOlaPorAnio[y].max);
+      const nochesValores = {}; Object.keys(rachasNochesPorAnio).forEach(y => nochesValores[y] = rachasNochesPorAnio[y].max);
+      const sequiaValores = {}; Object.keys(rachasSequiaPorAnio).forEach(y => sequiaValores[y] = rachasSequiaPorAnio[y].max);
+
+      // años sin ningún episodio deben salir como 0 en la gráfica, no desaparecer
+      const aniosOrdenadosParaRachas = Object.keys(porAnio).map(Number).sort((a,b) => a-b);
+      aniosOrdenadosParaRachas.forEach(y => {
+        if(!(y in olaValores)) olaValores[y] = 0;
+        if(!(y in nochesValores)) nochesValores[y] = 0;
+        if(!(y in sequiaValores)) sequiaValores[y] = 0;
+      });
+
+      drawBarChart('ola-chart', olaValores, '#E2543D', anioActual, true);
+      drawBarChart('noches-racha-chart', nochesValores, '#E8B84B', anioActual, true);
+      drawBarChart('sequia-chart', sequiaValores, '#C9A66B', anioActual, true);
 
       const gridMensual = agregarPorMesAnio(limpios);
       const aniosOrdenados = Object.keys(porAnio).map(Number).sort((a,b) => a-b);
