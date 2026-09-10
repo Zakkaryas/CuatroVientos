@@ -234133,5 +234133,33 @@
     "hrMin": "9",
     "horaHrMin": "14:00",
     "pintMax": "0,0"
+  },
+  {
+    "fecha": "2026-09-05",
+    "indicativo": "3196",
+    "nombre": "MADRID, CUATRO VIENTOS",
+    "provincia": "MADRID",
+    "altitud": "690",
+    "tmed": 30.0,
+    "prec": 0.0,
+    "tmin": 24.7,
+    "horatmin": "Varias",
+    "tmax": 35.2,
+    "horatmax": "13:45",
+    "dir": 24.0,
+    "velmedia": 3.6,
+    "racha": 9.7,
+    "horaracha": "Varias",
+    "sol": 2.0,
+    "presMax": 944.0,
+    "horaPresMax": "10",
+    "presMin": 941.9,
+    "horaPresMin": "03",
+    "hrMedia": "26",
+    "hrMax": "32",
+    "horaHrMax": "07:00",
+    "hrMin": "19",
+    "horaHrMin": "Varias",
+    "pintMax": "0,0"
   }
 ]
